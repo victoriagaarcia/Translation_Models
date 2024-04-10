@@ -8,7 +8,7 @@ Moreover, the model will be trained using embeddings to represent the words in t
 output languages. This will allow the model to treat words as vectors in a continuous space,
 which can help capture the semantic relationships between them. This fulfills the requirements
 included in the given project description.
-In order to evaluate the available options to build the model, we have conducted research to understand different approaches and techniques that can be valuable to build a translation model.
+In order to evaluate the available options to build the model, we have conducted research to understand different approaches and techniques that can be valuable to build a translation model.
 Some of these include, among others, the use of attention mechanisms and transformers.
 The project will be implemented in Python using the PyTorch library. Once the model is built,
 it will be trained on a dataset of parallel sentences in two languages. Subsequently, the model
