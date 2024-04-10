@@ -28,7 +28,7 @@ class PositionEncoding(nn.Module):
         super().__init__()
 
         self.d_embed = d_embed
-        self.max_len = max_len
+        self.max_len = max_len # Máxima longitud que puede tener una frase
         self.dropout = nn.Dropout(dropout)
 
         # Compute the positional encodings once in log space
@@ -48,3 +48,41 @@ class PositionEncoding(nn.Module):
         x += (self.pe[:, :x.shape[1], :]).requires_grad_(False) # Sumamos el vector de posición a los embeddings de las palabras
         return self.dropout(x) # Aplicamos dropout
 
+
+# SEQ2SEQ MODEL
+class Encoder(nn.Module):
+    def __init__(self, vocab_size, embed_size, hidden_size, num_layers = 1):
+        super().__init__()
+        # Define the network parameters
+        self.hidden_size = hidden_size
+        self.embedding = nn.Embedding(vocab_size, embed_size)
+        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
+    
+    def forward(self, x):
+        # Flip the input sequence to make the model easier to learn
+        x = torch.flip(x, [1])
+        # Embed the input
+        embedded = self.embedding(x)
+        # Pass the embedded input through the LSTM
+        output, (hidden, cell) = self.lstm(embedded)
+        return output, hidden, cell
+
+class Decoder(nn.Module):
+    def __init__(self, vocab_size, embed_size, hidden_size, num_layers = 1):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.embedding = nn.Embedding(vocab_size, embed_size)
+        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_size, vocab_size)
+    
+    def forward(self, x, hidden, cell):
+        # Embed the input
+        x = self.embedding(x)
+        # Pass the embedded input through the LSTM
+        output, (hidden, cell) = self.lstm(x, (hidden, cell))
+        # Pass the LSTM output through the fully connected layer
+        output = self.fc(output).reshape(x.shape[0], -1)
+        return output, hidden, cell
+
+# definir parámetros
+# crear encoder y decoder en el device
