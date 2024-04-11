@@ -13,7 +13,7 @@ def train_step(
     train_data: DataLoader,
     mean: float,
     std: float,
-    loss: torch.nn.Module,
+    loss: torch.nn.Module, # nn.CrossEntropyLoss
     optimizer: torch.optim.Optimizer,
     writer: SummaryWriter,
     epoch: int,
@@ -35,7 +35,7 @@ def train_step(
     """
 
     model.train()
-    total_loss = 0.0
+    train_loss = 0.0
 
     # for batch_idx, (inputs, targets) in enumerate(train_data):
     for inputs, targets in train_data:
@@ -56,11 +56,13 @@ def train_step(
         loss_value.backward()
         optimizer.step()
 
-        total_loss += loss_value.item()
+        train_loss += loss_value.item()
 
-    avg_loss = total_loss / len(train_data)
-    print(f"Epoch: {epoch + 1}, Train Loss: {avg_loss:.4f}")
-    writer.add_scalar("Loss/train", avg_loss, epoch)
+    # Compute the average loss
+    avg_train_loss = train_loss / len(train_data)
+
+    print(f"Epoch: {epoch + 1}, Train Loss: {avg_train_loss:.4f}")
+    writer.add_scalar("Loss/train", avg_train_loss, epoch)
 
 
 
@@ -70,7 +72,7 @@ def val_step(
     val_data: DataLoader,
     mean: float,
     std: float,
-    loss: torch.nn.Module,
+    loss: torch.nn.Module, # BLEU score
     scheduler: Optional[torch.optim.lr_scheduler.LRScheduler],
     writer: SummaryWriter,
     epoch: int,
@@ -92,23 +94,32 @@ def val_step(
     """
 
     model.eval()
-    total_loss = 0.0
+    val_loss = 0.0
 
     for inputs, targets in val_data:
-        inputs, targets = inputs.to(device).float(), targets.to(device).float()
+        inputs = inputs.to(device) #.float()
+        targets = targets.to(device) #.float()
 
+        # Forward pass
         outputs = model(inputs)
-        outputs = outputs * std + mean
-        targets = targets * std + mean
+
+        # Denormalize the outputs and targets ¿?
+        # outputs = outputs * std + mean
+        # targets = targets * std + mean
+
+        # Compute the loss (BLEU score in validation)
         loss_value = loss(outputs, targets)
+        val_loss += loss_value.item()
 
-        total_loss += loss_value.item()
+    # Update the scheduler
+    if scheduler is not None:
+        scheduler.step()
 
-    avg_loss = total_loss / len(val_data)
+    # Compute the average loss
+    avg_val_loss = val_loss / len(val_data)
 
-    print(
-            f"Epoch: {epoch + 1}, Val Loss: {avg_loss:.4f}"
-        )
+    print(f"Epoch: {epoch + 1}, Val Loss: {avg_val_loss:.4f}")
+    writer.add_scalar("Loss/val", avg_val_loss, epoch)
 
 
 @torch.no_grad()
@@ -118,6 +129,7 @@ def t_step(
     mean: float,
     std: float,
     device: torch.device,
+    loss: torch.nn.Module, # BLEU score
 ) -> float:
     """
     This function tests the model.
@@ -134,18 +146,25 @@ def t_step(
     """
 
     model.eval()
-    maes_list = []
+    bleu_scores = []
 
     for inputs, targets in test_data:
-        inputs, targets = inputs.to(device).float(), targets.to(device).float()
+        inputs = inputs.to(device) #.float()
+        targets = targets.to(device) #.float()
 
+        # Forward pass
         outputs = model(inputs)
-        outputs = outputs * std + mean
-        targets = targets * std + mean
-        maes_list.append(torch.abs(outputs - targets).mean().item())
 
-    mean_mae: float = float(np.mean(maes_list))
-    return mean_mae
+        # Denormalize the outputs and targets ¿?
+        # outputs = outputs * std + mean
+        # targets = targets * std + mean
+
+        # Compute the BLEU score
+        bleu_score = loss(outputs, targets)
+        bleu_scores.append(bleu_score.item())
+
+    avg_bleu: float = float(np.mean(bleu_scores))
+    return avg_bleu
 
 
 ######################################################
