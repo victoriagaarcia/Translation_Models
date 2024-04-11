@@ -10,7 +10,7 @@ from typing import Optional
 @torch.enable_grad()
 def train_step(
     model: torch.nn.Module,
-    train_data: DataLoader, 
+    train_data: DataLoader,
     mean: float,
     std: float,
     loss: torch.nn.Module,
@@ -37,13 +37,21 @@ def train_step(
     model.train()
     total_loss = 0.0
 
-    for batch_idx, (inputs, targets) in enumerate(train_data):
-        inputs, targets = inputs.to(device).float(), targets.to(device).float()
+    # for batch_idx, (inputs, targets) in enumerate(train_data):
+    for inputs, targets in train_data:
+        inputs = inputs.to(device) #.float()
+        targets = targets.to(device) #.float()
 
+        # Zero the gradients for this batch
         optimizer.zero_grad()
+        # Forward pass
         outputs = model(inputs)
-        outputs = outputs * std + mean
-        targets = targets * std + mean
+
+        # Denormalize the outputs and targets ¿?
+        # outputs = outputs * std + mean
+        # targets = targets * std + mean
+
+        # Compute the loss (CrossEntropyLoss in training)
         loss_value = loss(outputs, targets)
         loss_value.backward()
         optimizer.step()
@@ -51,9 +59,9 @@ def train_step(
         total_loss += loss_value.item()
 
     avg_loss = total_loss / len(train_data)
-    print(
-            f"Epoch: {epoch + 1}, Train Loss: {avg_loss:.4f}"
-        )
+    print(f"Epoch: {epoch + 1}, Train Loss: {avg_loss:.4f}")
+    writer.add_scalar("Loss/train", avg_loss, epoch)
+
 
 
 @torch.no_grad()
@@ -146,5 +154,5 @@ import torch.optim as optim
 import torch.nn as nn
 import random as rn
 
-def train_step():
-    loss = nn.CrossEntropyLoss(ignore_index=eng_word2int[PAD_TOKEN])
+# def train_step():
+#     loss = nn.CrossEntropyLoss(ignore_index=eng_word2int[PAD_TOKEN])
