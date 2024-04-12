@@ -8,16 +8,77 @@ from typing import Optional
 
 
 @torch.enable_grad()
+# def train_step(
+#     model: torch.nn.Module,
+#     train_data: DataLoader,
+#     mean: float,
+#     std: float,
+#     loss: torch.nn.Module, # nn.CrossEntropyLoss
+#     optimizer: torch.optim.Optimizer,
+#     writer: SummaryWriter,
+#     epoch: int,
+#     device: torch.device,
+# ) -> None:
+#     """
+#     This function train the model.
+
+#     Args:
+#         model: model to train.
+#         train_data: dataloader of train data.
+#         mean: mean of the target.
+#         std: std of the target.
+#         loss: loss function.
+#         optimizer: optimizer.
+#         writer: writer for tensorboard.
+#         epoch: epoch of the training.
+#         device: device for running operations.
+#     """
+
+#     model.train()
+#     train_loss = 0.0
+
+#     # for batch_idx, (inputs, targets) in enumerate(train_data):
+#     for inputs, targets in train_data:
+#         inputs = inputs.to(device) #.float()
+#         targets = targets.to(device) #.float()
+
+#         # Zero the gradients for this batch
+#         optimizer.zero_grad()
+#         # Forward pass
+#         outputs = model(inputs)
+
+#         # Denormalize the outputs and targets ¿?
+#         # outputs = outputs * std + mean
+#         # targets = targets * std + mean
+
+#         # Compute the loss (CrossEntropyLoss in training)
+#         loss_value = loss(outputs, targets)
+#         loss_value.backward()
+#         optimizer.step()
+
+#         train_loss += loss_value.item()
+
+#     # Compute the average loss
+#     avg_train_loss = train_loss / len(train_data)
+
+#     print(f"Epoch: {epoch + 1}, Train Loss: {avg_train_loss:.4f}")
+#     writer.add_scalar("Loss/train", avg_train_loss, epoch)
+
 def train_step(
-    model: torch.nn.Module,
+    encoder: torch.nn.Module,
+    decoder: torch.nn.Module,
     train_data: DataLoader,
     mean: float,
     std: float,
     loss: torch.nn.Module, # nn.CrossEntropyLoss
-    optimizer: torch.optim.Optimizer,
     writer: SummaryWriter,
-    epoch: int,
+    epochs: int,
+    batch_size: int,
     device: torch.device,
+    lang1_word2int: dict, # Diccionario de palabras a índices en el vocabulario de la lengua 1
+    lang2_word2int: dict, # Diccionario de palabras a índices en el vocabulario de la lengua 2
+    start_token: str = '<SOS>',
+    pad_token: int = 0
 ) -> None:
     """
     This function train the model.
@@ -34,36 +95,45 @@ def train_step(
         device: device for running operations.
     """
 
-    model.train()
     train_loss = 0.0
 
-    # for batch_idx, (inputs, targets) in enumerate(train_data):
-    for inputs, targets in train_data:
-        inputs = inputs.to(device) #.float()
-        targets = targets.to(device) #.float()
+    loss_function = loss(ignore_index=lang1_word2int[pad_token])
+    encoder_optimizer = optim.AdamW(encoder.parameters())
+    decoder_optimizer = optim.AdamW(decoder.parameters())
 
-        # Zero the gradients for this batch
-        optimizer.zero_grad()
-        # Forward pass
-        outputs = model(inputs)
+    encoder.train()
+    decoder.train()
 
-        # Denormalize the outputs and targets ¿?
-        # outputs = outputs * std + mean
-        # targets = targets * std + mean
+    for epoch in range(epochs):
+        for inputs, targets in train_data:
+            inputs = inputs.to(device) #.float()
+            targets = targets.to(device) #.float()
 
-        # Compute the loss (CrossEntropyLoss in training)
-        loss_value = loss(outputs, targets)
-        loss_value.backward()
-        optimizer.step()
+            # Zero the gradients for this batch
+            encoder_optimizer.zero_grad()
+            decoder_optimizer.zero_grad()
 
-        train_loss += loss_value.item()
+            # Forward pass
+            _, encoder_hidden, encoder_cell = encoder(inputs)
 
-    # Compute the average loss
-    avg_train_loss = train_loss / len(train_data)
+            decoder_input = torch.full((batch_size,1), lang1_word2int[start_token], dtype=torch.long).to(device)
+            decoder_hidden = encoder_hidden
+            decoder_cell = encoder_cell
 
-    print(f"Epoch: {epoch + 1}, Train Loss: {avg_train_loss:.4f}")
-    writer.add_scalar("Loss/train", avg_train_loss, epoch)
+            for i in range(rn.randint(0, len(targets)-1)):
+                logits, decoder_hidden, decoder_cell = decoder(decoder_input, decoder_hidden, decoder_cell)
+                train_loss += loss_function(logits, targets[:, i])
+                decoder_input = targets[:, i].reshape(batch_size, 1) # Teacher forcing
 
+            
+            loss.backward()
+            encoder_optimizer.step()
+            decoder_optimizer.step()
+
+        # Compute the average loss
+        avg_train_loss = train_loss / len(targets)
+
+        print(f"Epoch: {epoch + 1}, Train Loss: {avg_train_loss:.4f}")
 
 
 @torch.no_grad()
@@ -77,6 +147,7 @@ def val_step(
     writer: SummaryWriter,
     epoch: int,
     device: torch.device,
+    
 ) -> None:
     """
     This function train the model.

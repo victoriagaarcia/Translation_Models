@@ -86,3 +86,40 @@ class Decoder(nn.Module):
 
 # definir parámetros
 # crear encoder y decoder en el device
+
+eng_word2int = {word: i for i, word in enumerate(eng_vocab)}
+
+# TRADUCTOR (EVAL)
+# lan1_word2int: diccionario en el que cada palabra de la lengua 1 tiene un índice
+# lan2_word2int: diccionario en el que cada palabra de la lengua 2 tiene un índice
+
+def translator(encoder, decoder, sentence, lan1_word2int, lan2_word2int, max_length, start_token, end_token, device):
+    encoder.eval()
+    decoder.eval()
+
+    # Convert the input sentence to a tensor (Esto creo q se hace ya en la función de data.py)
+
+    _, encoder_hidden, encoder_cell = encoder(sentence)
+    # Initialize the decoder input with the start token
+    decoder_input = torch.tensor([[lan1_word2int[start_token]]], dtype=torch.long)
+
+    # Initialize the decoder hidden state with the encoder hidden state
+    decoder_hidden = encoder_hidden
+    decoder_cell = encoder_cell
+
+    # Decode the sentence
+    decoded_words = []
+    last_word = torch.tensor([[lan1_word2int[end_token]]]).to(device)
+
+    for _ in range(max_length):
+        logits, decoder_hidden, decoder_cell = decoder(last_word, decoder_hidden, decoder_cell)
+        next_token = torch.argmax(logits, dim=1)
+        last_word = torch.tensor([[next_token]]).to(device)
+
+        if next_token == lan2_word2int[end_token]:
+            break
+        else:
+            decoded_words.append(lan2_word2int.get(next_token.item()))
+
+    return ' '.join(decoded_words)
+
