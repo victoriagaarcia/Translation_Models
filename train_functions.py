@@ -2,12 +2,14 @@ import torch
 import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+# from nltk.translate.bleu_score import corpus_bleu
+from sacrebleu import corpus_bleu
+from tqdm.auto import tqdm
 
 # other libraries
 from typing import Optional
 
 
-@torch.enable_grad()
 # def train_step(
 #     model: torch.nn.Module,
 #     train_data: DataLoader,
@@ -64,21 +66,24 @@ from typing import Optional
 #     print(f"Epoch: {epoch + 1}, Train Loss: {avg_train_loss:.4f}")
 #     writer.add_scalar("Loss/train", avg_train_loss, epoch)
 
+@torch.enable_grad()
 def train_step(
     encoder: torch.nn.Module,
     decoder: torch.nn.Module,
     train_data: DataLoader,
-    mean: float,
-    std: float,
+    # mean: float,
+    # std: float,
     loss: torch.nn.Module, # nn.CrossEntropyLoss
+    encoder_optimizer: torch.optim.Optimizer,
+    decoder_optimizer: torch.optim.Optimizer,
     writer: SummaryWriter,
-    epochs: int,
+    epoch: int,
     batch_size: int,
     device: torch.device,
     lang1_word2int: dict, # Diccionario de palabras a índices en el vocabulario de la lengua 1
     lang2_word2int: dict, # Diccionario de palabras a índices en el vocabulario de la lengua 2
     start_token: str = '<SOS>',
-    pad_token: int = 0
+    # pad_token: int = 0
 ) -> None:
     """
     This function train the model.
@@ -97,57 +102,66 @@ def train_step(
 
     train_loss = 0.0
 
-    loss_function = loss(ignore_index=lang1_word2int[pad_token])
-    encoder_optimizer = optim.AdamW(encoder.parameters())
-    decoder_optimizer = optim.AdamW(decoder.parameters())
+    # loss_function = loss(ignore_index=lang1_word2int[pad_token])
+    # encoder_optimizer = optim.AdamW(encoder.parameters())
+    # decoder_optimizer = optim.AdamW(decoder.parameters())
 
     encoder.train()
     decoder.train()
+    
+    # Pregunto para que hacemos el primer bucle?
+    # for epoch in range(epochs):
+    for inputs, targets in tqdm(train_data):
+        
+        inputs = inputs.squeeze(-1)
+        targets = targets.squeeze(-1)
 
-    for epoch in range(epochs):
-        for inputs, targets in train_data:
-            inputs = inputs.to(device) #.float()
-            targets = targets.to(device) #.float()
+        inputs = inputs.to(device) #.float()
+        targets = targets.to(device) #.float()
 
-            # Zero the gradients for this batch
-            encoder_optimizer.zero_grad()
-            decoder_optimizer.zero_grad()
+        # Zero the gradients for this batch
+        encoder_optimizer.zero_grad()
+        decoder_optimizer.zero_grad()
 
-            # Forward pass
-            _, encoder_hidden, encoder_cell = encoder(inputs)
+        # Forward pass
+        _, encoder_hidden, encoder_cell = encoder(inputs)
 
-            decoder_input = torch.full((batch_size,1), lang1_word2int[start_token], dtype=torch.long).to(device)
-            decoder_hidden = encoder_hidden
-            decoder_cell = encoder_cell
-
-            for i in range(rn.randint(0, len(targets)-1)):
-                logits, decoder_hidden, decoder_cell = decoder(decoder_input, decoder_hidden, decoder_cell)
-                train_loss += loss_function(logits, targets[:, i])
-                decoder_input = targets[:, i].reshape(batch_size, 1) # Teacher forcing
-
-            
-            loss.backward()
-            encoder_optimizer.step()
-            decoder_optimizer.step()
-
-        # Compute the average loss
+        decoder_input = torch.full((batch_size,1), lang1_word2int[start_token], dtype=torch.long).to(device)
+        decoder_hidden = encoder_hidden
+        decoder_cell = encoder_cell
+        
+        loss_value = 0
+        
+        for i in range(targets.size(1)):
+            logits, decoder_hidden, decoder_cell = decoder(decoder_input, decoder_hidden, decoder_cell)
+            loss_value += loss(logits, targets[:, i])
+            decoder_input = targets[:, i].reshape(batch_size, 1) # Teacher forcing
+        #print('loss_value', loss_value.item())
+        loss_value.backward()
+        
+        encoder_optimizer.step()
+        decoder_optimizer.step()
+        
+        train_loss += loss_value.item()
+        
+    # Compute the average loss
         avg_train_loss = train_loss / len(targets)
 
-        print(f"Epoch: {epoch + 1}, Train Loss: {avg_train_loss:.4f}")
+    print(f"Epoch: {epoch + 1}, Train Loss: {avg_train_loss:.4f}")
 
 
 @torch.no_grad()
 def val_step(
-    model: torch.nn.Module,
+    encoder: torch.nn.Module,
+    decoder: torch.nn.Module,
     val_data: DataLoader,
-    mean: float,
-    std: float,
-    loss: torch.nn.Module, # BLEU score
-    scheduler: Optional[torch.optim.lr_scheduler.LRScheduler],
+    batch_size: int,
+    # loss: torch.nn.Module, # BLEU score
     writer: SummaryWriter,
     epoch: int,
     device: torch.device,
-    
+    lang1_word2int: dict, # Diccionario de palabras a índices en el vocabulario de la lengua 1
+    start_token: str = '<SOS>',
 ) -> None:
     """
     This function train the model.
@@ -164,7 +178,9 @@ def val_step(
         device: device for running operations.
     """
 
-    model.eval()
+    encoder.eval()
+    decoder.eval()
+    
     val_loss = 0.0
 
     for inputs, targets in val_data:
@@ -172,23 +188,24 @@ def val_step(
         targets = targets.to(device) #.float()
 
         # Forward pass
-        outputs = model(inputs)
-
-        # Denormalize the outputs and targets ¿?
-        # outputs = outputs * std + mean
-        # targets = targets * std + mean
-
-        # Compute the loss (BLEU score in validation)
-        loss_value = loss(outputs, targets)
-        val_loss += loss_value.item()
-
-    # Update the scheduler
-    if scheduler is not None:
-        scheduler.step()
-
+        _, encoder_hidden, encoder_cell = encoder(inputs)
+        
+        decoder_input = torch.full((batch_size,1), lang1_word2int[start_token], dtype=torch.long).to(device)
+        decoder_hidden = encoder_hidden
+        decoder_cell = encoder_cell
+        
+        loss_value = 0
+        
+        for i in range(targets.size(1)):
+            logits, decoder_hidden, decoder_cell = decoder(decoder_input, decoder_hidden, decoder_cell)
+            loss_value += corpus_bleu(logits, targets[:, i])
+            decoder_input = targets[:, i].reshape(batch_size, 1)
+            
+        val_loss += loss_value
+        
     # Compute the average loss
     avg_val_loss = val_loss / len(val_data)
-
+    
     print(f"Epoch: {epoch + 1}, Val Loss: {avg_val_loss:.4f}")
     writer.add_scalar("Loss/val", avg_val_loss, epoch)
 

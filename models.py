@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 import math
+from torch.nn.utils.rnn import pad_sequence
 
 class CreateEmbeddings(nn.Module):
 
@@ -87,7 +88,7 @@ class Decoder(nn.Module):
 # definir parámetros
 # crear encoder y decoder en el device
 
-eng_word2int = {word: i for i, word in enumerate(eng_vocab)}
+# eng_word2int = {word: i for i, word in enumerate(eng_vocab)}
 
 # TRADUCTOR (EVAL)
 # lan1_word2int: diccionario en el que cada palabra de la lengua 1 tiene un índice
