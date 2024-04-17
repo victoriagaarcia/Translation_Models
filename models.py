@@ -57,7 +57,9 @@ class Encoder(nn.Module):
         # Define the network parameters
         self.hidden_size = hidden_size
         self.embedding = nn.Embedding(vocab_size, embed_size)
-        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True) # bidirectional = True
+        # self.fc_hidden = nn.Linear(hidden_size * 2, hidden_size)
+        # self.fc_cell = nn.Linear(hidden_size * 2, hidden_size)
     
     def forward(self, x):
         # Flip the input sequence to make the model easier to learn
@@ -66,6 +68,10 @@ class Encoder(nn.Module):
         embedded = self.embedding(x)
         # Pass the embedded input through the LSTM
         output, (hidden, cell) = self.lstm(embedded)
+        # hidden = self.fc_hidden(torch.cat((hidden[-2,:,:], hidden[-1,:,:]), dim = 1)) ¿dimensiones?
+        # dimensiones en yt: hidden[0:1], hidden[1:2], dim=2
+        # cell = self.fc_cell(torch.cat((cell[-2,:,:], cell[-1,:,:]), dim = 1))
+        # dimensiones en yt: cell[0:1], cell[1:2], dim=2
         return output, hidden, cell
 
 class Decoder(nn.Module):
@@ -74,13 +80,32 @@ class Decoder(nn.Module):
         self.hidden_size = hidden_size
         self.embedding = nn.Embedding(vocab_size, embed_size)
         self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
+        # primer argumento: hidden_size * 2 + embed_size
+
+        # self.energy = nn.Linear(hidden_size * 2, 1) (yt dice hidden_size*3)
+        # self.softmax = nn.Softmax(dim=1) (yt dice dim=0)
+        # self.relu = nn.ReLU()
         self.fc = nn.Linear(hidden_size, vocab_size)
     
-    def forward(self, x, hidden, cell):
+    def forward(self, x, hidden, cell): # para attention toma el output del encoder y el hidden y cell del decoder
         # Embed the input
         x = self.embedding(x)
+
+        # sequence_length = output.shape[1] (yt dice [0])
+        # h_reshaped = hidden[0].repeat(sequence_length, 1, 1) (yt dice hidden.repeat)
+
+        # energy = self.relu(self.energy(torch.cat((h_reshaped, output), dim = 2)))
+        # attention = self.softmax(energy)
+
+        # attention = attention.permute(1, 2, 0) (yt dice 1, 0, 2)
+        # output = output.permute(1, 0, 2)
+
+        # context = torch.bmm(attention, output).permute(1, 0, 2) (yt dice 1, 0, 2)
+        # rnn_input = torch.cat((context, x), dim = 2)
+
         # Pass the embedded input through the LSTM
-        output, (hidden, cell) = self.lstm(x, (hidden, cell))
+        output, (hidden, cell) = self.lstm(x, (hidden, cell)) # en vez de x, rnn_input
+
         # Pass the LSTM output through the fully connected layer
         output = self.fc(output).reshape(x.shape[0], -1)
         return output, hidden, cell
