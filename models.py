@@ -52,11 +52,11 @@ class PositionEncoding(nn.Module):
 
 # SEQ2SEQ MODEL
 class Encoder(nn.Module):
-    def __init__(self, vocab_size, embed_size, hidden_size, num_layers = 1):
+    def __init__(self, vocab_size, embed_size, hidden_size, num_layers = 1, embeddings=None):   
         super().__init__()
         # Define the network parameters
         self.hidden_size = hidden_size
-        self.embedding = nn.Embedding(vocab_size, embed_size)
+        self.embedding = embeddings.embedding
         self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True) # bidirectional = True
         # self.fc_hidden = nn.Linear(hidden_size * 2, hidden_size)
         # self.fc_cell = nn.Linear(hidden_size * 2, hidden_size)
@@ -75,10 +75,10 @@ class Encoder(nn.Module):
         return output, hidden, cell
 
 class Decoder(nn.Module):
-    def __init__(self, vocab_size, embed_size, hidden_size, num_layers = 1):
+    def __init__(self, vocab_size, embed_size, hidden_size, num_layers = 1, embeddings = None):
         super().__init__()
         self.hidden_size = hidden_size
-        self.embedding = nn.Embedding(vocab_size, embed_size)
+        self.embedding = embeddings.embedding
         self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
         # primer argumento: hidden_size * 2 + embed_size
 
@@ -148,4 +148,3 @@ def translator(encoder, decoder, sentence, lan1_word2int, lan2_word2int, max_len
             decoded_words.append(lan2_word2int.get(next_token.item()))
 
     return ' '.join(decoded_words)
-

@@ -15,7 +15,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 SOS_token = 1
 EOS_token = 2
 
-MAX_LENGTH = 50
+MAX_LENGTH = 15
 
 class Lang:
     def __init__(self, name):

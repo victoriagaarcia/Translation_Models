@@ -53,7 +53,7 @@ def translator(encoder,
 def main():
    
     sentence = 'my name is hello.'
-    max_length = 50
+    max_length = 15
     
     input_lang = 'English'
     output_lang = 'Spanish'

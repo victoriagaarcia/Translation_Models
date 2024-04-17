@@ -2,6 +2,8 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from nltk.translate.bleu_score import corpus_bleu # pip install torchtext
+from gensim.models.keyedvectors import load_word2vec_format
+from flair.embeddings import WordEmbeddings
 # Other BLEU source?
 
 from tqdm.auto import tqdm
@@ -37,7 +39,7 @@ def main():
     
     # model parameters...
     # vocab_size = 0
-    embed_size = 50
+    embed_size = 300
     hidden_size = 64
     num_layers = 1
     
@@ -53,6 +55,10 @@ def main():
     # Load the data
     # train_data = ...
     # + vocabs, etc.
+    
+    input_lang_embeddings = WordEmbeddings('en')
+    output_lang_embeddings = WordEmbeddings('es')
+    
     train_dataloader, val_dataloader, input_lang_class, output_lang_class = get_dataloader(batch_size, input_lang, output_lang)
     
     # define name 
@@ -65,8 +71,8 @@ def main():
     vocab_size_output = output_lang_class.n_words
 
     # Create the model
-    encoder = Encoder(vocab_size_input, embed_size, hidden_size, num_layers).to(device)
-    decoder = Decoder(vocab_size_output, embed_size, hidden_size, num_layers).to(device)
+    encoder = Encoder(vocab_size_input, embed_size, hidden_size, num_layers, input_lang_embeddings).to(device)
+    decoder = Decoder(vocab_size_output, embed_size, hidden_size, num_layers, output_lang_embeddings).to(device)
 
     # Define loss functions
     ce_loss = torch.nn.CrossEntropyLoss() # ignore the padding token
