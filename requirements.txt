@@ -1,11 +1,13 @@
 torch>=1.0.0
+torchtext
+tensorboard
 numpy
 pandas
 utils>=1.0.0
 data>=1.0.0
-torchtext
 tqd
 sacrebleu
-torchtext
 nltk
 tqdm
+flair
+scipy==1.10.1
