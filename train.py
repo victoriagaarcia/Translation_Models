@@ -1,7 +1,6 @@
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
-from nltk.translate.bleu_score import corpus_bleu # pip install torchtext
 from flair.embeddings import WordEmbeddings
 # Other BLEU source?
 
@@ -33,9 +32,9 @@ torch.set_num_threads(8)
 
 def main():
     # training parameters... 
-    epochs = 20
+    epochs = 45
     lr = 1e-3
-    batch_size = 128
+    batch_size = 64
     
     # model parameters...
     # vocab_size = 0
@@ -52,6 +51,7 @@ def main():
     start_token = '<SOS>'
     end_token = '<EOS>'
     pad_token = '<PAD>'
+    unknown_token = 'UNK'
     max_length = 15
     
     # scheduler parameters... (step_size, gamma)
@@ -80,7 +80,7 @@ def main():
 
     # Define loss functions
     ce_loss = torch.nn.CrossEntropyLoss()
-    
+
     # Define the optimizer
     optimizer_encoder = torch.optim.AdamW(encoder.parameters(), lr=lr)
     optimizer_decoder = torch.optim.AdamW(decoder.parameters(), lr=lr)
@@ -100,16 +100,16 @@ def main():
     # Training loop
     for epoch in tqdm(range(epochs)):
         
-        train_step(encoder, decoder, train_dataloader, ce_loss, optimizer_encoder, optimizer_decoder, writer, epoch, batch_size, device, vocab_lang1, vocab_lang2, )
-        # val_step(encoder, decoder, val_dataloader, batch_size, writer, epoch,device, input_lang_class.word2index)
-        
+        train_step(encoder, decoder, train_dataloader, ce_loss, optimizer_encoder, optimizer_decoder, writer, epoch, batch_size, device, vocab_lang1, vocab_lang2)
+        val_step(encoder, decoder, val_dataloader, val_loss, writer, epoch, batch_size, device, vocab_lang1, vocab_lang2)
+
         scheduler_encoder.step()
         scheduler_decoder.step()
 
         # Crear un diccionario inverso
         lan2_int2word = {valor: clave for clave, valor in vocab_lang2.items()}
         sentence = "My name is good"
-        print(translator(encoder, decoder, sentence, vocab_lang1, lan2_int2word, max_length, start_token, end_token, device))
+        print(translator(encoder, decoder, sentence, vocab_lang1, lan2_int2word, max_length, start_token, end_token,unknown_token, device))
 
     save_model(encoder, name_enc)
     save_model(decoder, name_dec)

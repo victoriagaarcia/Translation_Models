@@ -12,6 +12,7 @@ def translator(encoder,
                max_length,
                start_token,
                end_token,
+               unknown_token,
                device):
     
     encoder.eval()
@@ -21,7 +22,7 @@ def translator(encoder,
     
     tokens = normalizeString(str(sentence)).split()
     
-    input_tensor = torch.tensor([lan1_word2int[start_token]] + [lan1_word2int[word] if word in lan1_word2int else lan1_word2int['<UNK>'] for word in tokens ])
+    input_tensor = torch.tensor([lan1_word2int[start_token]] + [lan1_word2int[word] if word in lan1_word2int else lan1_word2int[unknown_token] for word in tokens ])
     
     input_tensor = input_tensor.view(1, -1).to(device)  # batch_first=True
 
@@ -58,6 +59,7 @@ def main():
     
     start_token = '<SOS>'
     end_token = '<EOS>'
+    unknown_token = '<UNK>'
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
@@ -74,7 +76,7 @@ def main():
         lines = file.readlines()
         
         for sentence in lines:
-            sentence_translated = translator(encoder, decoder, sentence, lan1_word2int, lan2_int2word, max_length, start_token, end_token, device)
+            sentence_translated = translator(encoder, decoder, sentence, lan1_word2int, lan2_int2word, max_length, start_token, end_token, unknown_token, device)
             print(sentence_translated)  
     
 if __name__ == "__main__":
