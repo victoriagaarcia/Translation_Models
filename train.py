@@ -2,7 +2,6 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from nltk.translate.bleu_score import corpus_bleu # pip install torchtext
-from gensim.models.keyedvectors import load_word2vec_format
 from flair.embeddings import WordEmbeddings
 # Other BLEU source?
 

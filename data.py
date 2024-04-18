@@ -10,6 +10,8 @@ from torch.utils.data import TensorDataset, DataLoader, Dataset
 from torch.nn.utils.rnn import pad_sequence
 
 import pandas as pd
+import torchtext
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 SOS_token = 1
@@ -20,10 +22,10 @@ MAX_LENGTH = 15
 class Lang:
     def __init__(self, name):
         self.name = name
-        self.word2index = {'<PAD>': 0, '<SOS>': 1, '<EOS>': 2}
+        self.word2index = {'<PAD>': 0, '<SOS>': 1, '<EOS>': 2, '<UNK>': 3}
         self.word2count = {}
-        self.index2word = {0: '<PAD>', 1: '<SOS>', 2: '<EOS>'}
-        self.n_words = 3
+        self.index2word = {0: '<PAD>', 1: '<SOS>', 2: '<EOS>', 3: '<UNK>'}
+        self.n_words = 4
 
     def addSentence(self, sentence):
         for word in sentence:
@@ -49,9 +51,9 @@ class DatasetTranslator(Dataset):
     
     def __getitem__(self, idx):
         return self.text_lang1[idx], self.text_lang2[idx]
+    
 # Turn a Unicode string to plain ASCII, thanks to
 # https://stackoverflow.com/a/518232/2809427
-
 
 def unicodeToAscii(s):
     return ''.join(
@@ -87,6 +89,15 @@ def readLangs(lang1, lang2, filename):
     tr_texts2 = text_lang2[:train_size]
     val_texts2 = text_lang2[train_size:train_size+val_size]   
     
+    # tokenizer_lang1 = torchtext.data.get_tokenizer('basic_english', 'en')
+    # tokenizer_lang2 = torchtext.data.get_tokenizer('moses', 'es')
+    
+    # tokens_lang1_tr = [tokenizer_lang1(str(s).lower()) for s in tr_texts]
+    # tokens_lang2_tr = [tokenizer_lang2(str(s).lower()) for s in tr_texts2]
+    # tokens_lang1_val = [tokenizer_lang1(str(s).lower()) for s in val_texts]
+    # tokens_lang2_val = [tokenizer_lang2(str(s).lower()) for s in val_texts2]   
+    
+    # Use function to normalize the strings
     tokens_lang1_tr = [normalizeString(str(s)).split() for s in tr_texts]
     tokens_lang2_tr = [normalizeString(str(s)).split() for s in tr_texts2]
     tokens_lang1_val = [normalizeString(str(s)).split() for s in val_texts]
