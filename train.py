@@ -46,9 +46,6 @@ def main():
     step_size = 25
     gamma = 0.75
     
-    gamma = 0.1
-    step_size = 10
-    
     input_lang = 'English'
     output_lang = 'Spanish'
 
@@ -91,7 +88,7 @@ def main():
     # Define the scheduler
     scheduler_encoder = torch.optim.lr_scheduler.StepLR(optimizer_encoder, step_size=step_size, gamma=gamma)
     scheduler_decoder = torch.optim.lr_scheduler.StepLR(optimizer_decoder, step_size=step_size, gamma=gamma)
-    
+
     # Define the vocabularies
     vocab_lang1 = input_lang_class.word2index
     vocab_lang2 = output_lang_class.word2index

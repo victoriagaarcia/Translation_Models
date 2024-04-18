@@ -19,10 +19,6 @@ def translator(encoder,
 
     # Convert the input sentence to a tensor
     
-    
-    # tokenizer_lang1 = torchtext.data.get_tokenizer('basic_english', 'en')
-    # tokens = tokenizer_lang1(str(sentence).lower())
-    
     tokens = normalizeString(str(sentence)).split()
     
     input_tensor = torch.tensor([lan1_word2int[start_token]] + [lan1_word2int[word] if word in lan1_word2int else lan1_word2int['<UNK>'] for word in tokens ])
