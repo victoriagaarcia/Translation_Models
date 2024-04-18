@@ -25,8 +25,7 @@ def translator(encoder,
     
     tokens = normalizeString(str(sentence)).split()
     
-    input_tensor = torch.tensor([lan1_word2int[start_token]] + [lan1_word2int[word] if word in lan1_word2int else lan1_word2int['<UNK>'] for word in tokens ]
-                                    + [lan1_word2int[end_token]], dtype=torch.long)
+    input_tensor = torch.tensor([lan1_word2int[start_token]] + [lan1_word2int[word] if word in lan1_word2int else lan1_word2int['<UNK>'] for word in tokens ])
     
     input_tensor = input_tensor.view(1, -1).to(device)  # batch_first=True
 

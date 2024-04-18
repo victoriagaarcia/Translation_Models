@@ -13,6 +13,7 @@ from models import Encoder, Decoder
 from train_functions import train_step, val_step
 from data import get_dataloader
 from utils import set_seed, save_model, save_vocab
+from evaluate import translator
 
 # save_model functions...
 
@@ -32,15 +33,18 @@ torch.set_num_threads(8)
 
 def main():
     # training parameters... 
-    epochs = 30
-    lr = 1e-4
-    batch_size = 256
+    epochs = 20
+    lr = 1e-3
+    batch_size = 128
     
     # model parameters...
     # vocab_size = 0
     embed_size = 300
-    hidden_size = 64
-    num_layers = 1
+    hidden_size = 256
+    num_layers = 2
+
+    step_size = 25
+    gamma = 0.75
     
     gamma = 0.1
     step_size = 10
@@ -51,6 +55,7 @@ def main():
     start_token = '<SOS>'
     end_token = '<EOS>'
     pad_token = '<PAD>'
+    max_length = 15
     
     # scheduler parameters... (step_size, gamma)
 
@@ -77,8 +82,8 @@ def main():
     decoder = Decoder(vocab_size_output, embed_size, hidden_size, num_layers, output_lang_embeddings).to(device)
 
     # Define loss functions
-    ce_loss = torch.nn.CrossEntropyLoss() # ignore the padding token
-
+    ce_loss = torch.nn.CrossEntropyLoss()
+    
     # Define the optimizer
     optimizer_encoder = torch.optim.AdamW(encoder.parameters(), lr=lr)
     optimizer_decoder = torch.optim.AdamW(decoder.parameters(), lr=lr)
@@ -103,7 +108,12 @@ def main():
         
         scheduler_encoder.step()
         scheduler_decoder.step()
-    
+
+        # Crear un diccionario inverso
+        lan2_int2word = {valor: clave for clave, valor in vocab_lang2.items()}
+        sentence = "My name is good"
+        print(translator(encoder, decoder, sentence, vocab_lang1, lan2_int2word, max_length, start_token, end_token, device))
+
     save_model(encoder, name_enc)
     save_model(decoder, name_dec)
     
