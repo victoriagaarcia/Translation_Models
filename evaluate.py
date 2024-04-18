@@ -17,7 +17,7 @@ def translator(encoder,
     decoder.eval()
 
     # Convert the input sentence to a tensor 
-    tokens = [normalizeString(str(s)) for s in sentence.split(' ')]
+    tokens = normalizeString(str(sentence)).split()
     input_tensor = torch.tensor([lan1_word2int[start_token]] + [lan1_word2int[word] for word in tokens]
                                     + [lan1_word2int[end_token]], dtype=torch.long)
     
@@ -41,10 +41,8 @@ def translator(encoder,
         decoder_input = torch.tensor([[next_token]]).to(device)
 
         if next_token == lan1_word2int[end_token]:
-            print('he terminado en: ', _)
             break
         else:
-            print(next_token.item())
             decoded_words.append(lan2_int2word.get(next_token.item()))
 
     return ' '.join(decoded_words)
@@ -52,7 +50,7 @@ def translator(encoder,
 
 def main():
    
-    sentence = 'my name is hello.'
+    sentence = "The table is white"
     max_length = 15
     
     input_lang = 'English'
