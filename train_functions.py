@@ -81,7 +81,7 @@ def train_step(
     batch_size: int,
     device: torch.device,
     lang1_word2int: dict, # Diccionario de palabras a índices en el vocabulario de la lengua 1
-    lang2_word2int: dict, # Diccionario de palabras a índices en el vocabulario de la lengua 2
+    lang2_int2word: dict, # Diccionario de palabras a índices en el vocabulario de la lengua 2
     start_token: str = '<SOS>',
     # pad_token: int = 0
 ) -> None:
@@ -132,11 +132,15 @@ def train_step(
         
         loss_value = 0
         acc = 0
-
+        
         for i in range(targets.size(1)):
             logits, decoder_hidden, decoder_cell = decoder(decoder_input, decoder_hidden, decoder_cell)
+            print('logits', logits.size())  
             loss_value += loss(logits, targets[:, i])
-            acc += bleu_score(logits.unsqueeze(1), targets[:, i].unsqueeze(1))
+            # using bleu score from torchtext calculate the accuracy
+            print('logits', logits)
+            print('targets[:, i]', targets[:, i])
+            print('frase: ', [lang2_int2word[word.item()] for word in targets[:, i]])
             decoder_input = targets[:, i].reshape(batch_size, 1) # Teacher forcing
         #print('loss_value', loss_value.item())
         loss_value.backward()
@@ -219,7 +223,7 @@ def val_step(
         val_acc += accuracy
         
     # Compute the average loss
-    avg_val_acc = vall_acc / len(targets)
+    avg_val_acc = val_acc / len(targets)
 
     print(f"Epoch: {epoch + 1}, Val Accuracy: {avg_val_acc:.4f}")
     writer.add_scalar("Accuracy/val", avg_val_acc, epoch)

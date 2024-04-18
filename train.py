@@ -100,8 +100,8 @@ def main():
     # Training loop
     for epoch in tqdm(range(epochs)):
         
-        train_step(encoder, decoder, train_dataloader, ce_loss, optimizer_encoder, optimizer_decoder, writer, epoch, batch_size, device, vocab_lang1, vocab_lang2)
-        val_step(encoder, decoder, val_dataloader, val_loss, writer, epoch, batch_size, device, vocab_lang1, vocab_lang2)
+        train_step(encoder, decoder, train_dataloader, ce_loss, optimizer_encoder, optimizer_decoder, writer, epoch, batch_size, device, vocab_lang1, output_lang_class.index2word)
+        val_step(encoder, decoder, val_dataloader, writer, epoch, batch_size, device, vocab_lang1, vocab_lang2)
 
         scheduler_encoder.step()
         scheduler_decoder.step()
