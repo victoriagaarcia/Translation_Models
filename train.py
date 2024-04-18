@@ -2,7 +2,6 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from nltk.translate.bleu_score import corpus_bleu # pip install torchtext
-from gensim.models.keyedvectors import load_word2vec_format
 from flair.embeddings import WordEmbeddings
 # Other BLEU source?
 
@@ -14,6 +13,7 @@ from models import Encoder, Decoder
 from train_functions import train_step, val_step
 from data import get_dataloader
 from utils import set_seed, save_model, save_vocab
+from evaluate import translator
 
 # save_model functions...
 
@@ -33,15 +33,18 @@ torch.set_num_threads(8)
 
 def main():
     # training parameters... 
-    epochs = 30
-    lr = 1e-4
-    batch_size = 256
+    epochs = 20
+    lr = 1e-3
+    batch_size = 128
     
     # model parameters...
     # vocab_size = 0
     embed_size = 300
-    hidden_size = 64
-    num_layers = 1
+    hidden_size = 256
+    num_layers = 2
+
+    step_size = 25
+    gamma = 0.75
     
     input_lang = 'English'
     output_lang = 'Spanish'
@@ -49,6 +52,7 @@ def main():
     start_token = '<SOS>'
     end_token = '<EOS>'
     pad_token = '<PAD>'
+    max_length = 15
     
     # scheduler parameters... (step_size, gamma)
 
@@ -75,14 +79,15 @@ def main():
     decoder = Decoder(vocab_size_output, embed_size, hidden_size, num_layers, output_lang_embeddings).to(device)
 
     # Define loss functions
-    ce_loss = torch.nn.CrossEntropyLoss() # ignore the padding token
-
+    ce_loss = torch.nn.CrossEntropyLoss()
+    
     # Define the optimizer
     optimizer_encoder = torch.optim.AdamW(encoder.parameters(), lr=lr)
     optimizer_decoder = torch.optim.AdamW(decoder.parameters(), lr=lr)
 
     # Define the scheduler
-    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
+    scheduler_encoder = torch.optim.lr_scheduler.StepLR(optimizer_encoder, step_size=step_size, gamma=gamma)
+    scheduler_decoder = torch.optim.lr_scheduler.StepLR(optimizer_decoder, step_size=step_size, gamma=gamma)
 
     # Define the vocabularies
     vocab_lang1 = input_lang_class.word2index
@@ -97,7 +102,15 @@ def main():
         
         train_step(encoder, decoder, train_dataloader, ce_loss, optimizer_encoder, optimizer_decoder, writer, epoch, batch_size, device, vocab_lang1, vocab_lang2)
         # val_step(encoder, decoder, val_dataloader, batch_size, writer, epoch,device, input_lang_class.word2index)
-    
+        
+        scheduler_encoder.step()
+        scheduler_decoder.step()
+
+        # Crear un diccionario inverso
+        lan2_int2word = {valor: clave for clave, valor in vocab_lang2.items()}
+        sentence = "My name is good"
+        print(translator(encoder, decoder, sentence, vocab_lang1, lan2_int2word, max_length, start_token, end_token, device))
+
     save_model(encoder, name_enc)
     save_model(decoder, name_dec)
     

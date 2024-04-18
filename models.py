@@ -57,7 +57,7 @@ class Encoder(nn.Module):
         # Define the network parameters
         self.hidden_size = hidden_size
         self.embedding = embeddings.embedding
-        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True) # bidirectional = True
+        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True, bidirectional = True)
         # self.fc_hidden = nn.Linear(hidden_size * 2, hidden_size)
         # self.fc_cell = nn.Linear(hidden_size * 2, hidden_size)
     
@@ -79,13 +79,13 @@ class Decoder(nn.Module):
         super().__init__()
         self.hidden_size = hidden_size
         self.embedding = embeddings.embedding
-        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True, bidirectional=True)
         # primer argumento: hidden_size * 2 + embed_size
 
         # self.energy = nn.Linear(hidden_size * 2, 1) (yt dice hidden_size*3)
         # self.softmax = nn.Softmax(dim=1) (yt dice dim=0)
         # self.relu = nn.ReLU()
-        self.fc = nn.Linear(hidden_size, vocab_size)
+        self.fc = nn.Linear(hidden_size*2, vocab_size)
     
     def forward(self, x, hidden, cell): # para attention toma el output del encoder y el hidden y cell del decoder
         # Embed the input
