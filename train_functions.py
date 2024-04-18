@@ -148,6 +148,7 @@ def train_step(
         avg_train_loss = train_loss / len(targets)
 
     print(f"Epoch: {epoch + 1}, Train Loss: {avg_train_loss:.4f}")
+    writer.add_scalar("Loss/train", avg_train_loss, epoch)
 
 
 @torch.no_grad()

@@ -42,6 +42,9 @@ def main():
     hidden_size = 64
     num_layers = 1
     
+    gamma = 0.1
+    step_size = 10
+    
     input_lang = 'English'
     output_lang = 'Spanish'
 
@@ -81,8 +84,9 @@ def main():
     optimizer_decoder = torch.optim.AdamW(decoder.parameters(), lr=lr)
 
     # Define the scheduler
-    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
-
+    scheduler_encoder = torch.optim.lr_scheduler.StepLR(optimizer_encoder, step_size=step_size, gamma=gamma)
+    scheduler_decoder = torch.optim.lr_scheduler.StepLR(optimizer_decoder, step_size=step_size, gamma=gamma)
+    
     # Define the vocabularies
     vocab_lang1 = input_lang_class.word2index
     vocab_lang2 = output_lang_class.word2index
@@ -94,8 +98,11 @@ def main():
     # Training loop
     for epoch in tqdm(range(epochs)):
         
-        train_step(encoder, decoder, train_dataloader, ce_loss, optimizer_encoder, optimizer_decoder, writer, epoch, batch_size, device, vocab_lang1, vocab_lang2)
+        train_step(encoder, decoder, train_dataloader, ce_loss, optimizer_encoder, optimizer_decoder, writer, epoch, batch_size, device, vocab_lang1, vocab_lang2, )
         # val_step(encoder, decoder, val_dataloader, batch_size, writer, epoch,device, input_lang_class.word2index)
+        
+        scheduler_encoder.step()
+        scheduler_decoder.step()
     
     save_model(encoder, name_enc)
     save_model(decoder, name_dec)
