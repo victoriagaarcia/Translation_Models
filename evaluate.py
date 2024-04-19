@@ -26,7 +26,10 @@ def translator(encoder,
     
     input_tensor = input_tensor.view(1, -1).to(device)  # batch_first=True
 
-    _, encoder_hidden, encoder_cell = encoder(input_tensor)
+   # Get the length of the input sentence
+    text_length = torch.tensor(len(tokens)+2).view(1, -1).to(device)
+
+    _, encoder_hidden, encoder_cell = encoder(input_tensor,text_length)
     
     # Initialize the decoder input with the start token
     decoder_input = torch.tensor([[lan1_word2int[start_token]]], dtype=torch.long).to(device)

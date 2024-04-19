@@ -32,9 +32,9 @@ torch.set_num_threads(8)
 
 def main():
     # training parameters... 
-    epochs = 10
+    epochs = 60
     lr = 1e-3
-    batch_size = 64
+    batch_size = 32
     
     # model parameters...
     # vocab_size = 0
@@ -108,8 +108,12 @@ def main():
 
         # Crear un diccionario inverso
         lan2_int2word = {valor: clave for clave, valor in vocab_lang2.items()}
-        sentence = "My name is good"
-        print(translator(encoder, decoder, sentence, vocab_lang1, lan2_int2word, max_length, start_token, end_token,unknown_token, device))
+        sentence1 = "the debate is closed"
+        print(translator(encoder, decoder, sentence1, vocab_lang1, lan2_int2word, max_length, start_token, end_token,unknown_token, device))
+        sentence2 = "I regret that"
+        print(translator(encoder, decoder, sentence2, vocab_lang1, lan2_int2word, max_length, start_token, end_token,unknown_token, device))
+        sentence3 = "Is this too little too late?"
+        print(translator(encoder, decoder, sentence3, vocab_lang1, lan2_int2word, max_length, start_token, end_token,unknown_token, device))
 
     save_model(encoder, name_enc)
     save_model(decoder, name_dec)
