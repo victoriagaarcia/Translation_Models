@@ -33,10 +33,13 @@ def translator(encoder,
     
     # Initialize the decoder input with the start token
     decoder_input = torch.tensor([[lan1_word2int[start_token]]], dtype=torch.long).to(device)
-
+    # print('shape decoder input en eval', decoder_input.shape)
+    # print('shape encoder hidden en eval', encoder_hidden.shape)
+    # decoder_input = torch.concat((decoder_input, encoder_hidden.transpose(0, 1).reshape(1, -1)), dim=1).long()
+    
     # Initialize the decoder hidden state with the encoder hidden state
-    decoder_hidden = encoder_hidden
-    decoder_cell = encoder_cell
+    decoder_hidden = encoder_hidden.view(1, 1, -1)
+    decoder_cell = encoder_cell.view(1, 1, -1)
 
     # Decode the sentence
     decoded_words = []
@@ -45,6 +48,8 @@ def translator(encoder,
         logits, decoder_hidden, decoder_cell = decoder(decoder_input, decoder_hidden, decoder_cell)
         next_token = torch.argmax(logits, dim=1)
         decoder_input = torch.tensor([[next_token]]).to(device)
+        # print(next_token)
+        # decoder_input = torch.concat((decoder_input, encoder_hidden.transpose(0, 1).reshape(1, -1)), dim=1).long()
 
         if next_token == lan1_word2int[end_token]:
             break

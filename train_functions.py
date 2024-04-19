@@ -6,6 +6,8 @@ from torchtext.data.metrics import bleu_score
 from sacrebleu import corpus_bleu
 from tqdm.auto import tqdm
 
+import time
+
 # other libraries
 from typing import Optional
 
@@ -122,19 +124,32 @@ def train_step(
         decoder_optimizer.zero_grad()
 
         # Forward pass
-        _, encoder_hidden, encoder_cell = encoder(inputs, length_lang1)
-
-        decoder_input = torch.full((batch_size,1), lang1_word2int[start_token], dtype=torch.long).to(device)
-        decoder_hidden = encoder_hidden
-        decoder_cell = encoder_cell
+        output_encoder, encoder_hidden, encoder_cell = encoder(inputs, length_lang1)
+        context = encoder_hidden.transpose(0, 1).reshape(1, batch_size, -1)
+        decoder_input = torch.full((batch_size, 1), lang1_word2int[start_token]).to(device)
+        # print('shape decoder input en training (pre-concat)', decoder_input.shape) # [64, 1]
+        # print("shape encoder hidden en training", encoder_hidden.shape) # [2, 64, 128]
+        # print(decoder_input)
+        # decoder_input = torch.concat((decoder_input, context), dim=1) # o encoder_hidden
+        # print('shape decoder input en training (post-concat)', decoder_input.shape) # [64, 257]
+        decoder_hidden = context # encoder_hidden.view(1, batch_size, -1)
+        decoder_cell = encoder_cell.view(1, batch_size, -1)
         
         loss_value = 0
         predicted_sentences = []
         
+        # print(decoder_input[:10])
+        # print(decoder_hidden[:10])
+        
         for i in range(targets.size(1)):
+            # print(targets[:,i])
+            # time.sleep(0.5)
             logits, decoder_hidden, decoder_cell = decoder(decoder_input, decoder_hidden, decoder_cell)
+            # print(logits[:10])
             loss_value += loss(logits, targets[:, i])
             decoder_input = targets[:, i].reshape(batch_size, 1) # Teacher forcing
+            # decoder_input = torch.concat((decoder_input, context), dim=1)
+            # print('decoder input shape', decoder_input.shape)
 
             # # Obtener las palabras predichas para este paso de tiempo
             # top_values, top_indices = logits.topk(1)
