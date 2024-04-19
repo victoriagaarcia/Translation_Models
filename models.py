@@ -61,14 +61,18 @@ class Encoder(nn.Module):
         # self.fc_hidden = nn.Linear(hidden_size * 2, hidden_size)
         # self.fc_cell = nn.Linear(hidden_size * 2, hidden_size)
     
-    def forward(self, x):
+    def forward(self, x, text_lengths):
         # # Flip the input sequence to make the model easier to learn
         # x = torch.flip(x, [1])
         # Embed the input
-        embedded = self.embedding(x)
-        # Pass the embedded input through the LSTM
         
-        output, (hidden, cell) = self.lstm(embedded)
+        x = self.embedding(x)
+        
+        # TODO: Pack the embedded text for efficient processing in the LSTM
+        # packed_embedded: torch.Tensor = nn.utils.rnn.pack_padded_sequence(x, text_lengths, batch_first=True, enforce_sorted=False)
+        
+        # Pass the embedded input through the LSTM
+        output, (hidden, cell) = self.lstm(x)
         # concatenate hidden states of the bi-directional RNN layer
         hidden = torch.cat((hidden[0,:,:], hidden[1,:,:]), dim=1).unsqueeze(0)
         cell = torch.cat((cell[0,:,:], cell[1,:,:]), dim=1).unsqueeze(0)
@@ -110,10 +114,12 @@ class Decoder(nn.Module):
         # rnn_input = torch.cat((context, x), dim = 2)
 
         # Pass the embedded input through the LSTM
+        # packed_embedded: torch.Tensor = nn.utils.rnn.pack_padded_sequence(x, text_lengths, batch_first=True, enforce_sorted=False)
+        
         output, (hidden, cell) = self.lstm(x, (hidden, cell)) # en vez de x, rnn_input
 
         # Pass the LSTM output through the fully connected layer
-        output = self.fc(output).reshape(x.shape[0], -1)
+        output = self.fc(hidden[-1]).reshape(x.shape[0], -1)
         return output, hidden, cell
 
 # definir parámetros

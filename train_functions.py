@@ -109,7 +109,7 @@ def train_step(
     encoder.train()
     decoder.train()
     
-    for inputs, targets in tqdm(train_data):
+    for inputs, targets, length_lang1, length_lang2 in tqdm(train_data):
         
         inputs = inputs.squeeze(-1)
         targets = targets.squeeze(-1)
@@ -122,7 +122,7 @@ def train_step(
         decoder_optimizer.zero_grad()
 
         # Forward pass
-        _, encoder_hidden, encoder_cell = encoder(inputs)
+        _, encoder_hidden, encoder_cell = encoder(inputs, length_lang1)
 
         decoder_input = torch.full((batch_size,1), lang1_word2int[start_token], dtype=torch.long).to(device)
         decoder_hidden = encoder_hidden
@@ -136,16 +136,16 @@ def train_step(
             loss_value += loss(logits, targets[:, i])
             decoder_input = targets[:, i].reshape(batch_size, 1) # Teacher forcing
 
-            # Obtener las palabras predichas para este paso de tiempo
-            top_values, top_indices = logits.topk(1)
-            predicted_words = [lang2_int2word[index.item()] for index in top_indices.squeeze(1)]
+            # # Obtener las palabras predichas para este paso de tiempo
+            # top_values, top_indices = logits.topk(1)
+            # predicted_words = [lang2_int2word[index.item()] for index in top_indices.squeeze(1)]
             
-            # Agregar las palabras predichas a la lista de la frase correspondiente
-            for j in range(batch_size):
-                if i == 0:
-                    # Si es el primer paso de tiempo, inicializa la lista para esta frase
-                    predicted_sentences.append([])
-                predicted_sentences[j].append(predicted_words[j])
+            # # Agregar las palabras predichas a la lista de la frase correspondiente
+            # for j in range(batch_size):
+            #     if i == 0:
+            #         # Si es el primer paso de tiempo, inicializa la lista para esta frase
+            #         predicted_sentences.append([])
+            #     predicted_sentences[j].append(predicted_words[j])
         
         # print(predicted_sentences)
         loss_value.backward()

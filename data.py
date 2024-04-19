@@ -73,7 +73,7 @@ class DatasetTranslator(Dataset):
         return len(self.text_lang1)
     
     def __getitem__(self, idx):
-        return self.text_lang1[idx], self.text_lang2[idx]
+        return self.text_lang1[idx], self.text_lang2[idx],
 
     
 # Turn a Unicode string to plain ASCII, thanks to
@@ -173,14 +173,14 @@ def collate_fn(batch, input_lang, output_lang):
     # Calculate the lengths of each element of texts_indx.
     
     # The minimum length shall be 1, in order to avoid later problems when training the RNN
-    # lang1_lengths = [max(len(sentence), 1) for sentence in lang1_indx]
-    # lang2_lengths = [max(len(sentence), 1) for sentence in lang2_indx]
+    lang1_lengths = [max(len(sentence), 1) for sentence in lang1_indx]
+    lang2_lengths = [max(len(sentence), 1) for sentence in lang2_indx]
     
     # Pad the text sequences to have uniform length
     lan1_padded = pad_sequence(lang1_indx, batch_first=True)
     lan2_padded = pad_sequence(lang2_indx, batch_first=True)
     
-    return lan1_padded, lan2_padded
+    return lan1_padded, lan2_padded, lang1_lengths, lang2_lengths
 
 def get_dataloader(batch_size, input_lang, output_lang):
 
