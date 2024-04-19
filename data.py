@@ -1,7 +1,7 @@
 
 from __future__ import unicode_literals, print_function, division
-import unicodedata
 import re
+from typing import Tuple, List, Dict, Any
 
 import torch
 
@@ -10,6 +10,7 @@ from torch.utils.data import TensorDataset, DataLoader, Dataset
 from torch.nn.utils.rnn import pad_sequence
 
 import pandas as pd
+from utils import normalizeString
 import torchtext
 
 
@@ -19,6 +20,28 @@ EOS_token = 2
 
 MAX_LENGTH = 15
 
+def load_data(file_path: str) -> Tuple[List[List[str]], List[int]]:
+    """
+    Load data from a specified file path, extract texts and targets, and tokenize the texts using the tokenize_tweet function.
+
+    Parameters:
+    file_path (str): The path to the dataset file.
+
+    Returns:
+    Tuple[List[str], List[int]]: Lists of texts and corresponding targets.
+    """
+
+    # TODO: Read the corresponding csv
+    print('Reading lines...')
+    data: pd.DataFrame = pd.read_csv(file_path)
+    
+    # TODO: Obtain text columns from data
+    text_english= data['English']
+    text_spanish = data['Spanish']
+    
+    # TODO: Return tokenized texts
+    return [normalizeString(str(s)).split() for s in text_english], [normalizeString(str(s)).split() for s in text_spanish] 
+      
 class Lang:
     def __init__(self, name):
         self.name = name
@@ -51,43 +74,27 @@ class DatasetTranslator(Dataset):
     
     def __getitem__(self, idx):
         return self.text_lang1[idx], self.text_lang2[idx]
+
     
 # Turn a Unicode string to plain ASCII, thanks to
 # https://stackoverflow.com/a/518232/2809427
 
-def unicodeToAscii(s):
-    return ''.join(
-        c for c in unicodedata.normalize('NFD', s)
-        if unicodedata.category(c) != 'Mn'
-    )
-
-# Lowercase, trim, and remove non-letter characters
-def normalizeString(s):
-    s = unicodeToAscii(s.lower().strip())
-    s = re.sub(r"([.!?])", r" \1", s)
-    s = re.sub(r"[^a-zA-Z!?]+", r" ", s)
-    return s.strip()
-
 def readLangs(lang1, lang2, filename):
-    print("Reading lines...")
-    # Read the file into a DataFrame
-    df = pd.read_csv(filename)
+    
+    text_tokenize_english, text_tokenize_spanish = load_data(filename)
 
     input_lang = Lang(lang1)
     output_lang = Lang(lang2)
 
-    text_lang1 = df[lang1]
-    text_lang2 = df[lang2]
-    
     # divide the data into train, validation and test
-    train_size = round(0.8 * len(text_lang1))
-    val_size = round(0.2 * len(text_lang1))
+    train_size = round(0.8 * len(text_tokenize_english))
+    val_size = round(0.2 * len(text_tokenize_english))
     
-    tr_texts = text_lang1[:train_size]
-    val_texts = text_lang1[train_size:train_size+val_size]
+    tr_texts = text_tokenize_english[:train_size]
+    val_texts = text_tokenize_english[train_size:train_size+val_size]
 
-    tr_texts2 = text_lang2[:train_size]
-    val_texts2 = text_lang2[train_size:train_size+val_size]   
+    tr_texts2 = text_tokenize_spanish[:train_size]
+    val_texts2 = text_tokenize_spanish[train_size:train_size+val_size]   
     
     # tokenizer_lang1 = torchtext.data.get_tokenizer('basic_english', 'en')
     # tokenizer_lang2 = torchtext.data.get_tokenizer('moses', 'es')
@@ -97,13 +104,13 @@ def readLangs(lang1, lang2, filename):
     # tokens_lang1_val = [tokenizer_lang1(str(s).lower()) for s in val_texts]
     # tokens_lang2_val = [tokenizer_lang2(str(s).lower()) for s in val_texts2]   
     
-    # Use function to normalize the strings
-    tokens_lang1_tr = [normalizeString(str(s)).split() for s in tr_texts]
-    tokens_lang2_tr = [normalizeString(str(s)).split() for s in tr_texts2]
-    tokens_lang1_val = [normalizeString(str(s)).split() for s in val_texts]
-    tokens_lang2_val = [normalizeString(str(s)).split() for s in val_texts2]
+    # # Use function to normalize the strings
+    # tokens_lang1_tr = [normalizeString(str(s)).split() for s in tr_texts]
+    # tokens_lang2_tr = [normalizeString(str(s)).split() for s in tr_texts2]
+    # tokens_lang1_val = [normalizeString(str(s)).split() for s in val_texts]
+    # tokens_lang2_val = [normalizeString(str(s)).split() for s in val_texts2]
     
-    return input_lang, output_lang, tokens_lang1_tr, tokens_lang2_tr, tokens_lang1_val, tokens_lang2_val
+    return input_lang, output_lang, tr_texts, tr_texts2, val_texts, val_texts2
 
 def filterPair(p):
     return len(p[0]) < MAX_LENGTH and \
@@ -164,9 +171,10 @@ def collate_fn(batch, input_lang, output_lang):
     lang2_indx = [tensorFromSentence(output_lang, sentence) for sentence in lan2_batch]
     
     # Calculate the lengths of each element of texts_indx.
+    
     # The minimum length shall be 1, in order to avoid later problems when training the RNN
-    lang1_lengths = [max(len(sentence), 1) for sentence in lang1_indx]
-    lang2_lengths = [max(len(sentence), 1) for sentence in lang2_indx]
+    # lang1_lengths = [max(len(sentence), 1) for sentence in lang1_indx]
+    # lang2_lengths = [max(len(sentence), 1) for sentence in lang2_indx]
     
     # Pad the text sequences to have uniform length
     lan1_padded = pad_sequence(lang1_indx, batch_first=True)
@@ -192,7 +200,7 @@ def get_dataloader(batch_size, input_lang, output_lang):
                                   num_workers=0,
                                   drop_last=True,
                                   collate_fn=lambda batch: collate_fn(batch, input_lang, output_lang))
-    
+
     val_dataloader = DataLoader(val_data,
                                 batch_size=batch_size,
                                 shuffle=True,

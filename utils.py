@@ -2,6 +2,8 @@
 import torch
 import numpy as np
 from torch.jit import RecursiveScriptModule
+import unicodedata
+import re
 
 # other libraries
 import os
@@ -92,8 +94,16 @@ def load_vocab(name):
         
     return vocab
 
-
-
+# Lowercase, trim, and remove non-letter characters
+def normalizeString(s):
+    s = s.lower().strip()
+    s = ''.join(
+        c for c in unicodedata.normalize('NFD', s)
+        if unicodedata.category(c) != 'Mn'
+    )
+    s = re.sub(r"([.!?])", r" \1", s)
+    s = re.sub(r"[^a-zA-Z!?]+", r" ", s)
+    return s.strip()
 
 # def collate_fn(batch) :
 #     """

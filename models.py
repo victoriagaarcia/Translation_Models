@@ -62,12 +62,18 @@ class Encoder(nn.Module):
         # self.fc_cell = nn.Linear(hidden_size * 2, hidden_size)
     
     def forward(self, x):
-        # Flip the input sequence to make the model easier to learn
-        x = torch.flip(x, [1])
+        # # Flip the input sequence to make the model easier to learn
+        # x = torch.flip(x, [1])
         # Embed the input
         embedded = self.embedding(x)
         # Pass the embedded input through the LSTM
+        
         output, (hidden, cell) = self.lstm(embedded)
+        # concatenate hidden states of the bi-directional RNN layer
+        hidden = torch.cat((hidden[0,:,:], hidden[1,:,:]), dim=1).unsqueeze(0)
+        cell = torch.cat((cell[0,:,:], cell[1,:,:]), dim=1).unsqueeze(0)
+        
+        
         # hidden = self.fc_hidden(torch.cat((hidden[-2,:,:], hidden[-1,:,:]), dim = 1)) ¿dimensiones?
         # dimensiones en yt: hidden[0:1], hidden[1:2], dim=2
         # cell = self.fc_cell(torch.cat((cell[-2,:,:], cell[-1,:,:]), dim = 1))
@@ -79,13 +85,13 @@ class Decoder(nn.Module):
         super().__init__()
         self.hidden_size = hidden_size
         self.embedding = embeddings.embedding
-        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True, bidirectional=True)
+        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
         # primer argumento: hidden_size * 2 + embed_size
 
         # self.energy = nn.Linear(hidden_size * 2, 1) (yt dice hidden_size*3)
         # self.softmax = nn.Softmax(dim=1) (yt dice dim=0)
         # self.relu = nn.ReLU()
-        self.fc = nn.Linear(hidden_size*2, vocab_size)
+        self.fc = nn.Linear(hidden_size, vocab_size)
     
     def forward(self, x, hidden, cell): # para attention toma el output del encoder y el hidden y cell del decoder
         # Embed the input
