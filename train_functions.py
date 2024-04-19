@@ -109,8 +109,6 @@ def train_step(
     encoder.train()
     decoder.train()
     
-    # Pregunto para que hacemos el primer bucle?
-    # for epoch in range(epochs):
     for inputs, targets in tqdm(train_data):
         
         inputs = inputs.squeeze(-1)
@@ -131,35 +129,43 @@ def train_step(
         decoder_cell = encoder_cell
         
         loss_value = 0
-        acc = 0
+        predicted_sentences = []
         
         for i in range(targets.size(1)):
             logits, decoder_hidden, decoder_cell = decoder(decoder_input, decoder_hidden, decoder_cell)
-            print('logits', logits.size())  
             loss_value += loss(logits, targets[:, i])
-            # using bleu score from torchtext calculate the accuracy
-            print('logits', logits)
-            print('targets[:, i]', targets[:, i])
-            print('frase: ', [lang2_int2word[word.item()] for word in targets[:, i]])
             decoder_input = targets[:, i].reshape(batch_size, 1) # Teacher forcing
-        #print('loss_value', loss_value.item())
+
+            # Obtener las palabras predichas para este paso de tiempo
+            top_values, top_indices = logits.topk(1)
+            predicted_words = [lang2_int2word[index.item()] for index in top_indices.squeeze(1)]
+            
+            # Agregar las palabras predichas a la lista de la frase correspondiente
+            for j in range(batch_size):
+                if i == 0:
+                    # Si es el primer paso de tiempo, inicializa la lista para esta frase
+                    predicted_sentences.append([])
+                predicted_sentences[j].append(predicted_words[j])
+        
+        # print(predicted_sentences)
         loss_value.backward()
         
         encoder_optimizer.step()
         decoder_optimizer.step()
         
+        predicted_sentences = np.array(predicted_sentences)
         train_loss += loss_value.item()
-        train_acc += acc
+        # train_acc += bleu_score(predicted_sentences, targets)
         
     # Compute the average loss
     avg_train_loss = train_loss / len(targets)
-    avg_train_acc = train_acc / len(targets)
+    # avg_train_acc = train_acc / len(targets)
 
     print(f"Epoch: {epoch + 1}, Train Loss: {avg_train_loss:.4f}")
     writer.add_scalar("Loss/train", avg_train_loss, epoch)
 
-    print(f"Epoch: {epoch + 1}, Train Acc: {avg_train_acc:.4f}")
-    writer.add_scalar("Acc/train", avg_train_acc, epoch)
+    # print(f"Epoch: {epoch + 1}, Train Acc: {avg_train_acc:.4f}")
+    # writer.add_scalar("Acc/train", avg_train_acc, epoch)
 
 @torch.no_grad()
 def val_step(
@@ -199,7 +205,7 @@ def val_step(
     val_acc = 0
 
     for inputs, targets in val_data:
-
+        
         inputs = inputs.squeeze(-1)
         targets = targets.squeeze(-1)
 

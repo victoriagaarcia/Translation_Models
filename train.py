@@ -32,15 +32,15 @@ torch.set_num_threads(8)
 
 def main():
     # training parameters... 
-    epochs = 45
+    epochs = 10
     lr = 1e-3
     batch_size = 64
     
     # model parameters...
     # vocab_size = 0
     embed_size = 300
-    hidden_size = 256
-    num_layers = 2
+    hidden_size = 512
+    num_layers = 1
 
     step_size = 25
     gamma = 0.75
@@ -76,7 +76,7 @@ def main():
 
     # Create the model
     encoder = Encoder(vocab_size_input, embed_size, hidden_size, num_layers, input_lang_embeddings).to(device)
-    decoder = Decoder(vocab_size_output, embed_size, hidden_size, num_layers, output_lang_embeddings).to(device)
+    decoder = Decoder(vocab_size_output, embed_size, hidden_size*2, num_layers, output_lang_embeddings).to(device)
 
     # Define loss functions
     ce_loss = torch.nn.CrossEntropyLoss()
@@ -101,7 +101,7 @@ def main():
     for epoch in tqdm(range(epochs)):
         
         train_step(encoder, decoder, train_dataloader, ce_loss, optimizer_encoder, optimizer_decoder, writer, epoch, batch_size, device, vocab_lang1, output_lang_class.index2word)
-        val_step(encoder, decoder, val_dataloader, writer, epoch, batch_size, device, vocab_lang1, vocab_lang2)
+        # val_step(encoder, decoder, val_dataloader, writer, epoch, batch_size, device, vocab_lang1, vocab_lang2)
 
         scheduler_encoder.step()
         scheduler_decoder.step()
