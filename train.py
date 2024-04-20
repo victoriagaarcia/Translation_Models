@@ -32,18 +32,18 @@ torch.set_num_threads(8)
 
 def main():
     # training parameters... 
-    epochs = 100
-    lr = 0.01
-    batch_size = 64 # 32
+    epochs = 400
+    lr = 0.03
+    batch_size = 128 # 32
     
     # model parameters...
     # vocab_size = 0
     embed_size = 300
     hidden_size = 128
-    num_layers = 1
+    num_layers = 2
 
     step_size = 25
-    gamma = 0.7
+    gamma = 0.5
     
     input_lang = 'English'
     output_lang = 'Spanish'
@@ -52,7 +52,7 @@ def main():
     end_token = '<EOS>'
     pad_token = '<PAD>'
     unknown_token = '<UNK>'
-    max_length = 15
+    max_length = 20
     
     # scheduler parameters... (step_size, gamma)
 
@@ -65,7 +65,7 @@ def main():
     
     input_lang_embeddings.embedding
     
-    train_dataloader, val_dataloader, input_lang_class, output_lang_class = get_dataloader(batch_size, input_lang, output_lang)
+    train_dataloader, val_dataloader, input_lang_class, output_lang_class = get_dataloader(batch_size, input_lang, output_lang, max_length)
     
     # define name 
     name_enc: str = f"model_lr_{lr}_hs_{hidden_size}_{batch_size}_{epochs}_encoder"
@@ -99,6 +99,7 @@ def main():
     save_vocab(vocab_lang1, input_lang)
     save_vocab(vocab_lang2, output_lang)
     
+    print(len(train_dataloader))
     # Training loop
     for epoch in tqdm(range(epochs)):
         

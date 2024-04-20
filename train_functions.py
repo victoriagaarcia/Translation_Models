@@ -125,7 +125,11 @@ def train_step(
 
         # Forward pass
         output_encoder, encoder_hidden, encoder_cell = encoder(inputs, length_lang1)
-        context = encoder_hidden.transpose(0, 1).reshape(1, batch_size, -1)
+        # Output dimensions: [batchsize, LengthSentence, HiddenSize (*2 if bidireccional)]
+        # Hidden dimensions: [num_layers (*2 if bidirectional), batchsize, hiddensize] 
+        # Cell dimensions: [num_layers (*2 if bidirectional), batchsize, hiddensize]    
+        first_dim = int(encoder_hidden.shape[0] / 2) # porque es bidireccional
+        context = encoder_hidden.transpose(0, 1).reshape(first_dim, batch_size, -1)
         decoder_input = torch.full((batch_size, 1), lang1_word2int[start_token]).to(device)
         # print('shape decoder input en training (pre-concat)', decoder_input.shape) # [64, 1]
         # print("shape encoder hidden en training", encoder_hidden.shape) # [2, 64, 128]
@@ -133,15 +137,20 @@ def train_step(
         # decoder_input = torch.concat((decoder_input, context), dim=1) # o encoder_hidden
         # print('shape decoder input en training (post-concat)', decoder_input.shape) # [64, 257]
         decoder_hidden = context # encoder_hidden.view(1, batch_size, -1)
-        decoder_cell = encoder_cell.view(1, batch_size, -1)
+        decoder_cell = encoder_cell.view(first_dim, batch_size, -1)
         
         loss_value = 0
         predicted_sentences = []
         
         # print(decoder_input[:10])
         # print(decoder_hidden[:10])
-        
-        for i in range(targets.size(1)):
+
+        # El decoder necesita dimensiones: 
+        # Output dimensions: [batchsize, LengthSentence, HiddenSize (*2 if encoder bidireccional)]
+        # Hidden dimensions: [num_layers (*2 if bidirectional), batchsize, hiddensize] 
+        # Cell dimensions: [num_layers (*2 if bidirectional), batchsize, hiddensize] 
+
+        for i in range(1, targets.size(1)):
             # print(targets[:,i])
             # time.sleep(0.5)
             logits, decoder_hidden, decoder_cell = decoder(decoder_input, decoder_hidden, decoder_cell)
@@ -153,7 +162,7 @@ def train_step(
 
             # # Obtener las palabras predichas para este paso de tiempo
             # top_values, top_indices = logits.topk(1)
-            # predicted_words = [lang2_int2word[index.item()] for index in top_indices.squeeze(1)]
+            # predicted_words = [lang2_int2word[index.item()] for index in top_indices.squeeze(1)] 
             
             # # Agregar las palabras predichas a la lista de la frase correspondiente
             # for j in range(batch_size):
