@@ -73,6 +73,7 @@ class Encoder(nn.Module):
         
         # Pass the embedded input through the LSTM
         output, (hidden, cell) = self.lstm(x)
+       
         # concatenate hidden states of the bi-directional RNN layer
         # hidden = torch.cat((hidden[0,:,:], hidden[1,:,:]), dim=1).unsqueeze(0)
         # cell = torch.cat((cell[0,:,:], cell[1,:,:]), dim=1).unsqueeze(0)

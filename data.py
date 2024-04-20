@@ -18,8 +18,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 SOS_token = 1
 EOS_token = 2
 
-MAX_LENGTH = 15
-
 def load_data(file_path: str) -> Tuple[List[List[str]], List[int]]:
     """
     Load data from a specified file path, extract texts and targets, and tokenize the texts using the tokenize_tweet function.
@@ -112,16 +110,16 @@ def readLangs(lang1, lang2, filename):
     
     return input_lang, output_lang, tr_texts, tr_texts2, val_texts, val_texts2
 
-def filterPair(p):
-    return len(p[0]) < MAX_LENGTH and \
-        len(p[1]) < MAX_LENGTH
+def filterPair(p, max_length):
+    return len(p[0]) <= max_length and \
+        len(p[1]) <= max_length
 
 
-def filterPairs(pairs):
-    return [pair for pair in pairs if filterPair(pair)]
+def filterPairs(pairs, max_length):
+    return [pair for pair in pairs if filterPair(pair, max_length)]
 
 
-def prepareData(lang1, lang2, reverse = False):
+def prepareData(lang1, lang2, max_length):
 
     filename = f'data/{lang1.lower()}_{lang2.lower()}.csv'
     
@@ -131,8 +129,8 @@ def prepareData(lang1, lang2, reverse = False):
     pairs_val = [[text_val[i], text_val2[i]] for i in range(len(text_val))]
     
     print("Read %s sentence pairs" % len(pairs))
-    pairs = filterPairs(pairs)
-    pairs_val = filterPairs(pairs_val)
+    pairs = filterPairs(pairs, max_length)
+    pairs_val = filterPairs(pairs_val, max_length)
     
     print("Trimmed to %s sentence pairs" % len(pairs))
     
@@ -182,9 +180,9 @@ def collate_fn(batch, input_lang, output_lang):
     
     return lan1_padded, lan2_padded, lang1_lengths, lang2_lengths
 
-def get_dataloader(batch_size, input_lang, output_lang):
+def get_dataloader(batch_size, input_lang, output_lang, max_length):
 
-    input_lang, output_lang, pairs, pairs_val = prepareData(input_lang, output_lang)
+    input_lang, output_lang, pairs, pairs_val = prepareData(input_lang, output_lang, max_length)
     
     tr_texts1 = [pair[0] for pair in pairs]
     tr_texts2 = [pair[1] for pair in pairs]

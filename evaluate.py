@@ -22,45 +22,49 @@ def translator(encoder,
     
     tokens = normalizeString(str(sentence)).split()
     
-    input_tensor = torch.tensor([lan1_word2int[start_token]] + [lan1_word2int[word] if word in lan1_word2int else lan1_word2int[unknown_token] for word in tokens ])
-    
-    input_tensor = input_tensor.view(1, -1).to(device)  # batch_first=True
+    if len(tokens) <= max_length: 
+        input_tensor = torch.tensor([lan1_word2int[start_token]] + [lan1_word2int[word] if word in lan1_word2int else lan1_word2int[unknown_token] for word in tokens ])
+        
+        input_tensor = input_tensor.view(1, -1).to(device)  # batch_first=True
 
-   # Get the length of the input sentence
-    text_length = torch.tensor(len(tokens)+2).view(1, -1).to(device)
+    # Get the length of the input sentence
+        text_length = torch.tensor(len(tokens)+2).view(1, -1).to(device)
 
-    _, encoder_hidden, encoder_cell = encoder(input_tensor,text_length)
-    
-    # Initialize the decoder input with the start token
-    decoder_input = torch.tensor([[lan1_word2int[start_token]]], dtype=torch.long).to(device)
-    # print('shape decoder input en eval', decoder_input.shape)
-    # print('shape encoder hidden en eval', encoder_hidden.shape)
-    # decoder_input = torch.concat((decoder_input, encoder_hidden.transpose(0, 1).reshape(1, -1)), dim=1).long()
-    
-    # Initialize the decoder hidden state with the encoder hidden state
-    decoder_hidden = encoder_hidden.view(1, 1, -1)
-    decoder_cell = encoder_cell.view(1, 1, -1)
-
-    # Decode the sentence
-    decoded_words = []
-    
-    for _ in range(max_length):
-        logits, decoder_hidden, decoder_cell = decoder(decoder_input, decoder_hidden, decoder_cell)
-        next_token = torch.argmax(logits, dim=1)
-        decoder_input = torch.tensor([[next_token]]).to(device)
-        # print(next_token)
+        _, encoder_hidden, encoder_cell = encoder(input_tensor,text_length)
+        
+        # Initialize the decoder input with the start token
+        decoder_input = torch.tensor([[lan1_word2int[start_token]]], dtype=torch.long).to(device)
+        # print('shape decoder input en eval', decoder_input.shape)
+        # print('shape encoder hidden en eval', encoder_hidden.shape)
         # decoder_input = torch.concat((decoder_input, encoder_hidden.transpose(0, 1).reshape(1, -1)), dim=1).long()
+        
+        # Initialize the decoder hidden state with the encoder hidden state
+        first_dim = int(encoder_hidden.shape[0] / 2)
+        decoder_hidden = encoder_hidden.view(first_dim, 1, -1)
+        decoder_cell = encoder_cell.view(first_dim, 1, -1)
 
-        if next_token == lan1_word2int[end_token]:
-            break
-        else:
-            decoded_words.append(lan2_int2word.get(next_token.item()))
+        # Decode the sentence
+        decoded_words = [start_token]
+        
+        for _ in range(1, max_length):
+            logits, decoder_hidden, decoder_cell = decoder(decoder_input, decoder_hidden, decoder_cell)
+            next_token = torch.argmax(logits, dim=1)
+            decoder_input = torch.tensor([[next_token]]).to(device)
+            # print(next_token)
+            # decoder_input = torch.concat((decoder_input, encoder_hidden.transpose(0, 1).reshape(1, -1)), dim=1).long()
 
-    return ' '.join(decoded_words)
+            if next_token == lan1_word2int[end_token]:
+                break
+            else:
+                decoded_words.append(lan2_int2word.get(next_token.item()))
+
+        return ' '.join(decoded_words)
+    else: 
+        return f'ERROR: the sentence is longer than {max_length}'
 
 
 def main():
-    max_length = 15
+    max_length = 25
     
     input_lang = 'English'
     output_lang = 'Spanish'
