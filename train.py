@@ -32,18 +32,18 @@ torch.set_num_threads(8)
 
 def main():
     # training parameters... 
-    epochs = 60
-    lr = 1e-3
-    batch_size = 32
+    epochs = 100
+    lr = 0.01
+    batch_size = 64 # 32
     
     # model parameters...
     # vocab_size = 0
     embed_size = 300
-    hidden_size = 512
+    hidden_size = 128
     num_layers = 1
 
     step_size = 25
-    gamma = 0.75
+    gamma = 0.7
     
     input_lang = 'English'
     output_lang = 'Spanish'
@@ -51,7 +51,7 @@ def main():
     start_token = '<SOS>'
     end_token = '<EOS>'
     pad_token = '<PAD>'
-    unknown_token = 'UNK'
+    unknown_token = '<UNK>'
     max_length = 15
     
     # scheduler parameters... (step_size, gamma)
@@ -62,6 +62,8 @@ def main():
     
     input_lang_embeddings = WordEmbeddings('en')
     output_lang_embeddings = WordEmbeddings('es')
+    
+    input_lang_embeddings.embedding
     
     train_dataloader, val_dataloader, input_lang_class, output_lang_class = get_dataloader(batch_size, input_lang, output_lang)
     
