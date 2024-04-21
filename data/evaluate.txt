@@ -1,5 +1,5 @@
-"I like flower"
-"My neighbour is blond"
+"I like flowers"
+"My brother is blond"
 "He likes having fun"
 "The computer is broken"
 "Who knows?"
