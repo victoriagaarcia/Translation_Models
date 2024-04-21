@@ -17,7 +17,7 @@ SOS_token = 1
 MAX_LENGTH = 10
 
 class EncoderRNN(nn.Module):
-    def __init__(self, input_size, hidden_size, dropout_p=0.1):
+    def __init__(self, input_size, hidden_size, dropout_p=0.3):
         super(EncoderRNN, self).__init__()
         self.hidden_size = hidden_size
 

@@ -10,7 +10,7 @@ from torch.utils.data import TensorDataset, DataLoader, Dataset
 from torch.nn.utils.rnn import pad_sequence
 
 import pandas as pd
-from utils import normalizeString
+from utils_malo import normalizeString
 import torchtext
 
 
