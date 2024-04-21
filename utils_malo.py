@@ -25,10 +25,9 @@ def save_model(model: torch.nn.Module, name: str) -> None:
     if not os.path.isdir("models"):
         os.makedirs("models")
 
-    # # save scripted model
-    # model_scripted: RecursiveScriptModule = torch.jit.script(model.cpu())
-    # model_scripted.save(f"models/{name}.pt")
-    torch.save(model, f"models/{name}.pt" )
+    # save scripted model
+    model_scripted: RecursiveScriptModule = torch.jit.script(model.cpu())
+    model_scripted.save(f"models/{name}.pt")
 
     return None
 
@@ -45,8 +44,8 @@ def load_model(name: str) -> RecursiveScriptModule:
     """
 
     # define model
-    # model: RecursiveScriptModule = torch.jit.load(f"{name}")
-    model = torch.load(f"{name}")
+    model: RecursiveScriptModule = torch.jit.load(f"{name}")
+
     return model
 
 

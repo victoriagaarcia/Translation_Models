@@ -1,5 +1,5 @@
 import torch
-from utils import load_model, load_vocab
+from utils_malo import load_model, load_vocab
 from data import normalizeString
 import torchtext
 

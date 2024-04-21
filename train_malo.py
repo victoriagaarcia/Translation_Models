@@ -11,7 +11,7 @@ from typing import Final
 from models_malo import Encoder, Decoder
 from train_functions_malo import train_step, val_step
 from data import get_dataloader
-from utils import set_seed, save_model, save_vocab
+from utils_malo import set_seed, save_model, save_vocab
 from evaluate_malo import translator
 
 # save_model functions...
