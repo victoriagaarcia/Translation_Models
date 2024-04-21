@@ -1,96 +1,79 @@
+from __future__ import unicode_literals, print_function, division
+from io import open
+import unicodedata
+import re
+import random
+
 import torch
-from utils import load_model, load_vocab
-from data import normalizeString
-import torchtext
+import torch.nn as nn
+from torch import optim
+import torch.nn.functional as F
 
+import numpy as np
+from torch.utils.data import TensorDataset, DataLoader, RandomSampler
+from data import tensorFromSentence
 
-def translator(encoder,
-               decoder,
-               sentence,
-               lan1_word2int,
-               lan2_int2word,
-               max_length,
-               start_token,
-               end_token,
-               unknown_token,
-               device):
-    
-    encoder.eval()
-    decoder.eval()
+from data import get_dataloader, normalizeString
+from utils import load_model
 
-    # Convert the input sentence to a tensor
-    
-    tokens = normalizeString(str(sentence)).split()
-    
-    if len(tokens) <= max_length: 
-        input_tensor = torch.tensor([lan1_word2int[start_token]] + [lan1_word2int[word] if word in lan1_word2int else lan1_word2int[unknown_token] for word in tokens ])
-        
-        input_tensor = input_tensor.view(1, -1).to(device)  # batch_first=True
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+SOS_token = 0
+EOS_token = 1
 
-    # Get the length of the input sentence
-        text_length = torch.tensor(len(tokens)+2).view(1, -1).to(device)
+def evaluate(encoder, decoder, sentence, input_lang, output_lang, unk_token_str):
+    with torch.no_grad():
+        input_tensor = tensorFromSentence(input_lang, sentence, EOS_token, unk_token_str)
+        input_tensor = input_tensor.transpose(0, 1)
+        encoder_outputs, encoder_hidden = encoder(input_tensor)
+        decoder_outputs, decoder_hidden, decoder_attn  = decoder(encoder_outputs, encoder_hidden)
 
-        _, encoder_hidden, encoder_cell = encoder(input_tensor,text_length)
-        
-        # Initialize the decoder input with the start token
-        decoder_input = torch.tensor([[lan1_word2int[start_token]]], dtype=torch.long).to(device)
-        # print('shape decoder input en eval', decoder_input.shape)
-        # print('shape encoder hidden en eval', encoder_hidden.shape)
-        # decoder_input = torch.concat((decoder_input, encoder_hidden.transpose(0, 1).reshape(1, -1)), dim=1).long()
-        
-        # Initialize the decoder hidden state with the encoder hidden state
-        first_dim = int(encoder_hidden.shape[0] / 2)
-        decoder_hidden = encoder_hidden.view(first_dim, 1, -1)
-        decoder_cell = encoder_cell.view(first_dim, 1, -1)
+        _, topi = decoder_outputs.topk(1)
+        decoded_ids = topi.squeeze()
 
-        # Decode the sentence
-        decoded_words = [start_token]
-        
-        for _ in range(1, max_length):
-            logits, decoder_hidden, decoder_cell = decoder(decoder_input, decoder_hidden, decoder_cell)
-            next_token = torch.argmax(logits, dim=1)
-            decoder_input = torch.tensor([[next_token]]).to(device)
-            # print(next_token)
-            # decoder_input = torch.concat((decoder_input, encoder_hidden.transpose(0, 1).reshape(1, -1)), dim=1).long()
-
-            if next_token == lan1_word2int[end_token]:
+        decoded_words = []
+        for idx in decoded_ids:
+            if idx.item() == EOS_token:
+                decoded_words.append('<EOS>')
                 break
-            else:
-                decoded_words.append(lan2_int2word.get(next_token.item()))
+            decoded_words.append(output_lang.index2word[idx.item()])
+    return decoded_words, decoder_attn
 
-        return ' '.join(decoded_words)
-    else: 
-        return f'ERROR: the sentence is longer than {max_length}'
-
-
-def main():
-    max_length = 25
+def evaluateRandomly(encoder, decoder, input_lang, output_lang, unk_token_str):
     
-    input_lang = 'English'
-    output_lang = 'Spanish'
-    
-    start_token = '<SOS>'
-    end_token = '<EOS>'
-    unknown_token = '<UNK>'
-    
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    
-    encoder = load_model("models/best_encoder.pt").to(device)
-    decoder = load_model("models/best_decoder.pt").to(device)
-    
-    lan1_word2int = load_vocab(f"{input_lang}")
-    lan2_word2int = load_vocab(f"{output_lang}")
-      
-    # Crear un diccionario inverso
-    lan2_int2word = {valor: clave for clave, valor in lan2_word2int.items()}
-    # read line by line from the file in the data folder named evaluate.txt
     with open('data/evaluate.txt', 'r') as file:
         lines = file.readlines()
         
         for sentence in lines:
-            sentence_translated = translator(encoder, decoder, sentence, lan1_word2int, lan2_int2word, max_length, start_token, end_token, unknown_token, device)
-            print(sentence_translated)  
-    
+            sentence = normalizeString(sentence)
+            output_words, _ = evaluate(encoder, decoder, sentence, input_lang, output_lang, unk_token_str)
+            output_sentence = ' '.join(output_words)
+            print('>', sentence)
+            print('<', output_sentence)
+            print('')
+
 if __name__ == "__main__":
-    main()
-    
+        
+    # Hyperparameters
+    batch_size: int = 1
+
+    # Parameteres data
+    SOS_token: int = 1
+    EOS_token: int = 2
+    unk_token: int = 3
+    unk_token_str: str = "UNK"
+    max_length: int = 10
+    namelang_in: str = 'eng'
+    namelang_out: str = 'fra'
+
+    # Set device
+    device: torch.device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # load data
+    input_lang, output_lang, train_dataloader, val_dataloader = get_dataloader(batch_size, unk_token_str, EOS_token, max_length, namelang_in, namelang_out)
+
+    # load models
+    encoder = load_model('models/best_encoder.pt')
+    decoder = load_model('models/best_decoder.pt')
+
+    evaluateRandomly(encoder, decoder, input_lang, output_lang, unk_token_str)
+        

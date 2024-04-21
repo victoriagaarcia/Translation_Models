@@ -1,125 +1,163 @@
+from __future__ import unicode_literals, print_function, division
+
+from io import open
+import unicodedata
+import re
+import random
+
 import torch
-from torch.utils.tensorboard import SummaryWriter
-from torch.utils.data import DataLoader
-from flair.embeddings import WordEmbeddings
-# Other BLEU source?
-
+import torch.nn as nn
+from torch import optim
+import torch.nn.functional as F
 from tqdm.auto import tqdm
-from typing import Final
+import numpy as np
+from torch.utils.data import TensorDataset, DataLoader, RandomSampler
+from evaluate import evaluateRandomly
 
-# Our own libraries
-from models import Encoder, Decoder
-from train_functions import train_step, val_step
-from data import get_dataloader
-from utils import set_seed, save_model, save_vocab
-from evaluate import translator
+import time
+import math
+import matplotlib.pyplot as plt
+plt.switch_backend('agg')
+import matplotlib.ticker as ticker
 
-# save_model functions...
+SOS_token = 1
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# DATA_PATH: Final[str] = 'data/'
+def showPlot(points):
+    plt.figure()
+    fig, ax = plt.subplots()
+    # this locator puts ticks at regular intervals
+    loc = ticker.MultipleLocator(base=0.2)
+    ax.yaxis.set_major_locator(loc)
+    plt.plot(points)
 
-if torch.cuda.is_available():
-    device: Final[torch.device] = torch.device('cuda')
-elif torch.backends.mkl.is_available():
-    device: Final[torch.device] = torch.device('mps')
-else:
-    device: Final[torch.device] = torch.device('cpu')
+def asMinutes(s):
+    m = math.floor(s / 60)
+    s -= m * 60
+    return '%dm %ds' % (m, s)
 
-# set the seed...
-# set all seeds and set number of threads
-set_seed(42)
-torch.set_num_threads(8)
+def timeSince(since, percent):
+    now = time.time()
+    s = now - since
+    es = s / (percent)
+    rs = es - s
+    return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 
-def main():
-    # training parameters... 
-    epochs = 400
-    lr = 0.03
-    batch_size = 128 # 32
+def val_epoch(dataloader, encoder, decoder, encoder_optimizer, 
+              decoder_optimizer, criterion, device):
     
-    # model parameters...
-    # vocab_size = 0
-    embed_size = 300
-    hidden_size = 128
-    num_layers = 2
+    encoder.eval()
+    decoder.eval()
 
-    step_size = 25
-    gamma = 0.5
-    
-    input_lang = 'English'
-    output_lang = 'Spanish'
+    # define metric lists
+    total_loss = 0
 
-    start_token = '<SOS>'
-    end_token = '<EOS>'
-    pad_token = '<PAD>'
-    unknown_token = '<UNK>'
-    max_length = 20
-    
-    # scheduler parameters... (step_size, gamma)
+    with torch.no_grad():
+        # iterate over the validation data
+        for data in dataloader:
+            
+            input_tensor, target_tensor, length_input, length_output = data
+            
+            input_tensor = input_tensor.squeeze(-1)
+            target_tensor = target_tensor.squeeze(-1)
 
-    # Load the data
-    # train_data = ...
-    # + vocabs, etc.
-    
-    input_lang_embeddings = WordEmbeddings('en')
-    output_lang_embeddings = WordEmbeddings('es')
-    
-    input_lang_embeddings.embedding
-    
-    train_dataloader, val_dataloader, input_lang_class, output_lang_class = get_dataloader(batch_size, input_lang, output_lang, max_length)
-    
-    # define name 
-    name_enc: str = f"model_lr_{lr}_hs_{hidden_size}_{batch_size}_{epochs}_encoder"
-    name_dec: str = f"model_lr_{lr}_hs_{hidden_size}_{batch_size}_{epochs}_decoder"
-    # Define the writer
-    writer: SummaryWriter = SummaryWriter(f"runs/{name_enc}_{name_dec}")
-    
-    vocab_size_input = input_lang_class.n_words
-    vocab_size_output = output_lang_class.n_words
+            encoder_outputs, encoder_hidden = encoder(input_tensor)
+            decoder_outputs, _, _ = decoder(encoder_outputs, encoder_hidden, target_tensor)
 
-    # Create the model
-    encoder = Encoder(vocab_size_input, embed_size, hidden_size, num_layers, input_lang_embeddings).to(device)
-    decoder = Decoder(vocab_size_output, embed_size, hidden_size*2, num_layers, output_lang_embeddings).to(device)
+            loss = criterion(
+                decoder_outputs.view(-1, decoder_outputs.size(-1)),
+                target_tensor.view(-1)
+            )
 
-    # Define loss functions
-    ce_loss = torch.nn.CrossEntropyLoss()
-
-    # Define the optimizer
-    optimizer_encoder = torch.optim.AdamW(encoder.parameters(), lr=lr)
-    optimizer_decoder = torch.optim.AdamW(decoder.parameters(), lr=lr)
-
-    # Define the scheduler
-    scheduler_encoder = torch.optim.lr_scheduler.StepLR(optimizer_encoder, step_size=step_size, gamma=gamma)
-    scheduler_decoder = torch.optim.lr_scheduler.StepLR(optimizer_decoder, step_size=step_size, gamma=gamma)
-
-    # Define the vocabularies
-    vocab_lang1 = input_lang_class.word2index
-    vocab_lang2 = output_lang_class.word2index
-    
-    # Save the vocabs
-    save_vocab(vocab_lang1, input_lang)
-    save_vocab(vocab_lang2, output_lang)
-    
-    print(len(train_dataloader))
-    # Training loop
-    for epoch in tqdm(range(epochs)):
+            total_loss += loss.item()
         
-        train_step(encoder, decoder, train_dataloader, ce_loss, optimizer_encoder, optimizer_decoder, writer, epoch, batch_size, device, vocab_lang1, output_lang_class.index2word)
-        # val_step(encoder, decoder, val_dataloader, writer, epoch, batch_size, device, vocab_lang1, vocab_lang2)
+        return total_loss / len(dataloader)
 
-        scheduler_encoder.step()
-        scheduler_decoder.step()
+    # # write metrics
+    # writer.add_scalar("Loss/val", np.mean(losses), epoch)
+    # writer.add_scalar("Accuracy/val", acc.compute(), epoch)
+    # evaluateRandomly(encoder, decoder, pairs, input_lang, output_lang)
 
-        # Crear un diccionario inverso
-        lan2_int2word = {valor: clave for clave, valor in vocab_lang2.items()}
-        sentence1 = "the debate is closed"
-        print(translator(encoder, decoder, sentence1, vocab_lang1, lan2_int2word, max_length, start_token, end_token,unknown_token, device))
-        sentence2 = "I regret that"
-        print(translator(encoder, decoder, sentence2, vocab_lang1, lan2_int2word, max_length, start_token, end_token,unknown_token, device))
-        sentence3 = "Is this too little too late?"
-        print(translator(encoder, decoder, sentence3, vocab_lang1, lan2_int2word, max_length, start_token, end_token,unknown_token, device))
+def train_epoch(dataloader, encoder, decoder, encoder_optimizer,
+          decoder_optimizer, criterion, device):
 
-    save_model(encoder, name_enc)
-    save_model(decoder, name_dec)
+    total_loss = 0
+
+    encoder.train()
+    decoder.train()
+
+    for data in tqdm(dataloader):
+        input_tensor, target_tensor, length_input, length_output = data
+        
+        input_tensor = input_tensor.squeeze(-1)
+        target_tensor = target_tensor.squeeze(-1)
+
+        encoder_optimizer.zero_grad()
+        decoder_optimizer.zero_grad()
+
+        encoder_outputs, encoder_hidden = encoder(input_tensor)
+        decoder_outputs, _, _ = decoder(encoder_outputs, encoder_hidden, target_tensor)
+
+        loss = criterion(
+            decoder_outputs.view(-1, decoder_outputs.size(-1)),
+            target_tensor.view(-1)
+        )
+
+        loss.backward()
+
+        encoder_optimizer.step()
+        decoder_optimizer.step()
+
+        total_loss += loss.item()
+
+    return total_loss / len(dataloader)
+
+def train(train_dataloader, val_dataloader, encoder, decoder, n_epochs, learning_rate, device,
+               print_every=100, plot_every=100):
     
-if __name__ == '__main__':
-    main()
+    start = time.time()
+    plot_losses = []
+    print_loss_total = 0  # Reset every print_every
+    plot_loss_total = 0  # Reset every plot_every
+
+    plot_losses_val = []
+    print_loss_total_val = 0  # Reset every print_every
+    plot_loss_total_val = 0  # Reset every plot_every
+
+
+    encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate)
+    decoder_optimizer = optim.Adam(decoder.parameters(), lr=learning_rate)
+    criterion = nn.CrossEntropyLoss()
+
+    for epoch in tqdm(range(1, n_epochs + 1)):
+        loss = train_epoch(train_dataloader, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, device)
+        print_loss_total += loss
+        plot_loss_total += loss
+
+        if epoch % print_every == 0:
+            print_loss_avg = print_loss_total / print_every
+            print_loss_total = 0
+            print('%s (%d %d%%) %.4f' % (timeSince(start, epoch / n_epochs),
+                                        epoch, epoch / n_epochs * 100, print_loss_avg))
+
+        if epoch % plot_every == 0:
+            plot_loss_avg = plot_loss_total / plot_every
+            plot_losses.append(plot_loss_avg)
+            plot_loss_total = 0
+
+        loss = val_epoch(val_dataloader, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, device)
+        print_loss_total_val += loss
+        plot_loss_total_val += loss
+
+        if epoch % print_every == 0:
+            print_loss_avg = print_loss_total_val / print_every
+            print_loss_total_val = 0
+            print('%s (%d %d%%) %.4f' % (timeSince(start, epoch / n_epochs),
+                                        epoch, epoch / n_epochs * 100, print_loss_avg))
+
+        if epoch % plot_every == 0:
+            plot_loss_avg_val = plot_loss_total_val / plot_every
+            plot_losses_val.append(plot_loss_avg_val)
+            plot_loss_total_val = 0
+        
+    showPlot(plot_losses)
