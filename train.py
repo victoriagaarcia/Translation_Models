@@ -15,7 +15,7 @@ SOS_token = 1
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def asMinutes(s: time) -> str:
+def asMinutes(s: float) -> str:
     """
     """
     m = math.floor(s / 60)
@@ -23,7 +23,7 @@ def asMinutes(s: time) -> str:
     return '%dm %ds' % (m, s)
 
 
-def timeSince(since: time, percent: float) -> str:
+def timeSince(since: float, percent: float) -> str:
     """
     """
     now = time.time()
@@ -148,8 +148,8 @@ def train(train_dataloader: DataLoader, val_dataloader: DataLoader,
     start = time.time()
 
     # Reset every print_every
-    print_loss_total = 0
-    print_loss_total_val = 0
+    print_loss_total: float = 0.0
+    print_loss_total_val: float = 0.0
 
     # Define optimizers
     encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate)

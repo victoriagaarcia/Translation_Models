@@ -34,6 +34,7 @@ PAD_token: int = 0
 SOS_token: int = 1
 EOS_token: int = 2
 max_length: int = 10
+unk_token_str: str = "UNK"
 namelang_in: str = 'eng'
 namelang_out: str = 'fra'
 
@@ -52,7 +53,7 @@ output_lang_embeddings = WordEmbeddings('fr')
 
 # load data
 input_lang, output_lang, train_dataloader, val_dataloader = get_dataloader(
-    batch_size, SOS_token, EOS_token, max_length, namelang_in, namelang_out)
+    batch_size, unk_token_str, EOS_token, max_length, namelang_in, namelang_out)
 
 # Define model: encoder + decoder with attention
 encoder: torch.nn.Module = EncoderRNN(input_lang.n_words, hidden_size).to(device)

@@ -41,12 +41,12 @@ class DecoderRNN(nn.Module):
         decoder_input = torch.full((batch_size, 1), SOS_token,
                                    dtype=torch.long).to(device)
         decoder_hidden = encoder_hidden
-        decoder_outputs = []
+        decoder_outputs_list = []
 
         for i in range(max_length):
             decoder_output, decoder_hidden = self.forward_step(decoder_input,
                                                                decoder_hidden)
-            decoder_outputs.append(decoder_output)
+            decoder_outputs_list.append(decoder_output)
 
             if target_tensor is not None:
                 # Teacher forcing: Feed the target as the next input
@@ -56,7 +56,7 @@ class DecoderRNN(nn.Module):
                 _, topi = decoder_output.topk(1)
                 decoder_input = topi.squeeze(-1).detach()  # detach from history as input
 
-        decoder_outputs = torch.cat(decoder_outputs, dim=1)
+        decoder_outputs: torch.Tensor = torch.cat(decoder_outputs_list, dim=1)
         decoder_outputs = F.log_softmax(decoder_outputs, dim=-1)
 
         return decoder_outputs, decoder_hidden
@@ -104,15 +104,15 @@ class AttnDecoderRNN(nn.Module):
         decoder_input = torch.empty(batch_size, 1, dtype=torch.long,
                                     device=device).fill_(SOS_token)
         decoder_hidden = encoder_hidden
-        decoder_outputs = []
-        attentions = []
+        decoder_outputs_list = []
+        attentions_list = []
 
         for i in range(max_length):
             decoder_output, decoder_hidden, attn_weights = self.forward_step(
                 decoder_input, decoder_hidden, encoder_outputs
             )
-            decoder_outputs.append(decoder_output)
-            attentions.append(attn_weights)
+            decoder_outputs_list.append(decoder_output)
+            attentions_list.append(attn_weights)
 
             if target_tensor is not None:
                 # Teacher forcing: Feed the target as the next input
@@ -122,9 +122,9 @@ class AttnDecoderRNN(nn.Module):
                 _, topi = decoder_output.topk(1)
                 decoder_input = topi.squeeze(-1).detach()  # detach from history as input
 
-        decoder_outputs = torch.cat(decoder_outputs, dim=1)
+        decoder_outputs: torch.Tensor = torch.cat(decoder_outputs_list, dim=1)
         decoder_outputs = F.log_softmax(decoder_outputs, dim=-1)
-        attentions = torch.cat(attentions, dim=1)
+        attentions = torch.cat(attentions_list, dim=1)
 
         return decoder_outputs, decoder_hidden, attentions
 
