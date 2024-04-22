@@ -29,7 +29,7 @@ class Lang:
         self.word2index: Dict[str, int] = {"PAD": 0, "SOS": 1, "EOS": 2, "UNK": 3}
         self.word2count: Dict[str, int] = {}
         self.index2word: Dict[int, str] = {0: "PAD", 1: "SOS", 2: "EOS", 3: "UNK"}
-        self.n_words = 4  # Count SOS and EOS
+        self.n_words: int = 4  # Count SOS and EOS
 
     def addSentence(self, sentence: str) -> None:
         """

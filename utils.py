@@ -9,6 +9,7 @@ import re
 import os
 import random
 import json
+from typing import Dict
 
 
 def save_model(model: torch.nn.Module, name: str) -> None:
@@ -78,7 +79,7 @@ def set_seed(seed: int) -> None:
     return None
 
 
-def save_vocab(vocab, name):
+def save_vocab(vocab: Dict[str, int], name: str):
     """
     """
     # create folder if it does not exist
@@ -90,7 +91,7 @@ def save_vocab(vocab, name):
         json.dump(vocab, f)
 
 
-def load_vocab(name):
+def load_vocab(name: str) -> Dict[str, int]:
     """
     """
     # load vocab
@@ -101,7 +102,7 @@ def load_vocab(name):
 
 
 # Lowercase, trim, and remove non-letter characters
-def normalizeString(s):
+def normalizeString(s: str) -> str:
     s = s.lower().strip()
     s = ''.join(
         c for c in unicodedata.normalize('NFD', s)

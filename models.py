@@ -4,37 +4,40 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from typing import Tuple
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 SOS_token = 1
 MAX_LENGTH = 10
 
 
 class EncoderRNN(nn.Module):
-    def __init__(self, input_size, hidden_size, dropout_p=0.3):
+    def __init__(self, input_size: int, hidden_size: int, dropout_p=0.3):
         super(EncoderRNN, self).__init__()
         self.hidden_size = hidden_size
 
-        self.embedding = nn.Embedding(input_size, hidden_size)
+        self.embedding: nn.Embedding = nn.Embedding(input_size, hidden_size)
         # self.embedding = embeddings.embedding
-        self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
-        self.dropout = nn.Dropout(dropout_p)
+        self.gru: nn.GRU = nn.GRU(hidden_size, hidden_size, batch_first=True)
+        self.dropout: nn.Dropout = nn.Dropout(dropout_p)
 
-    def forward(self, input):
+    def forward(self, input: torch.Tensor):
         embedded = self.dropout(self.embedding(input))
         output, hidden = self.gru(embedded)
         return output, hidden
 
 
 class DecoderRNN(nn.Module):
-    def __init__(self, hidden_size, output_size):
+    def __init__(self, hidden_size: int, output_size: int):
         super(DecoderRNN, self).__init__()
-        self.embedding = nn.Embedding(output_size, hidden_size)
+        self.embedding: nn.Embedding = nn.Embedding(output_size, hidden_size)
         # self.embedding = embeddings.embedding
-        self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
-        self.out = nn.Linear(hidden_size, output_size)
+        self.gru: nn.GRU = nn.GRU(hidden_size, hidden_size, batch_first=True)
+        self.out: nn.Linear = nn.Linear(hidden_size, output_size)
 
-    def forward(self, device, SOS_token, encoder_outputs,
-                encoder_hidden, target_tensor=None):
+    def forward(self, device: torch.device, SOS_token: int,
+                encoder_outputs: torch.Tensor, encoder_hidden: torch.Tensor,
+                target_tensor=None) -> Tuple[torch.Tensor, torch.Tensor]:
         batch_size = encoder_outputs.size(0)
         max_length = target_tensor.size(1) if target_tensor is not None else MAX_LENGTH
 
@@ -62,7 +65,8 @@ class DecoderRNN(nn.Module):
         return decoder_outputs, decoder_hidden
         # We return `None` for consistency in the training loop
 
-    def forward_step(self, input, hidden):
+    def forward_step(self, input: torch.Tensor, hidden: torch.Tensor
+                     ) -> Tuple[torch.Tensor, torch.Tensor]:
         output = self.embedding(input)
         output = F.relu(output)
         output, hidden = self.gru(output, hidden)
@@ -71,13 +75,13 @@ class DecoderRNN(nn.Module):
 
 
 class BahdanauAttention(nn.Module):
-    def __init__(self, hidden_size):
+    def __init__(self, hidden_size: int):
         super(BahdanauAttention, self).__init__()
-        self.Wa = nn.Linear(hidden_size, hidden_size)
-        self.Ua = nn.Linear(hidden_size, hidden_size)
-        self.Va = nn.Linear(hidden_size, 1)
+        self.Wa: nn.Linear = nn.Linear(hidden_size, hidden_size)
+        self.Ua: nn.Linear = nn.Linear(hidden_size, hidden_size)
+        self.Va: nn.Linear = nn.Linear(hidden_size, 1)
 
-    def forward(self, query, keys):
+    def forward(self, query: torch.Tensor, keys: torch.Tensor):
         scores = self.Va(torch.tanh(self.Wa(query) + self.Ua(keys)))
         scores = scores.squeeze(2).unsqueeze(1)
 
@@ -88,15 +92,17 @@ class BahdanauAttention(nn.Module):
 
 
 class AttnDecoderRNN(nn.Module):
-    def __init__(self, hidden_size, output_size, dropout_p=0.1):
+    def __init__(self, hidden_size: int, output_size: int, dropout_p=0.1):
         super(AttnDecoderRNN, self).__init__()
-        self.embedding = nn.Embedding(output_size, hidden_size)
-        self.attention = BahdanauAttention(hidden_size)
-        self.gru = nn.GRU(2 * hidden_size, hidden_size, batch_first=True)
-        self.out = nn.Linear(hidden_size, output_size)
-        self.dropout = nn.Dropout(dropout_p)
+        self.embedding: nn.Embedding = nn.Embedding(output_size, hidden_size)
+        self.attention: BahdanauAttention = BahdanauAttention(hidden_size)
+        self.gru: nn.GRU = nn.GRU(2 * hidden_size, hidden_size, batch_first=True)
+        self.out: nn.Linear = nn.Linear(hidden_size, output_size)
+        self.dropout: nn.Dropout = nn.Dropout(dropout_p)
 
-    def forward(self, encoder_outputs, encoder_hidden, target_tensor=None):
+    def forward(self, encoder_outputs: torch.Tensor,
+                encoder_hidden: torch.Tensor, target_tensor=None
+                ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         batch_size = encoder_outputs.size(0)
 
         max_length = target_tensor.size(1) if target_tensor is not None else MAX_LENGTH
@@ -128,7 +134,9 @@ class AttnDecoderRNN(nn.Module):
 
         return decoder_outputs, decoder_hidden, attentions
 
-    def forward_step(self, input, hidden, encoder_outputs):
+    def forward_step(self, input: torch.Tensor, hidden: torch.Tensor,
+                     encoder_outputs: torch.Tensor
+                     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         embedded = self.dropout(self.embedding(input))
 
         query = hidden.permute(1, 0, 2)

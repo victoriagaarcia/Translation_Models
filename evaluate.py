@@ -5,14 +5,16 @@ import torch
 import numpy as np
 from data import tensorFromSentence
 
-from data import get_dataloader, normalizeString
+from data import get_dataloader, normalizeString, Lang
 from utils import load_model
+from torch.jit import RecursiveScriptModule
 
 from nltk.translate.bleu_score import SmoothingFunction
 from nltk.translate.bleu_score import sentence_bleu
 
 
-def evaluate(encoder, decoder, sentence, input_lang, output_lang, unk_token_str):
+def evaluate(encoder: RecursiveScriptModule, decoder: RecursiveScriptModule,
+             sentence: str, input_lang: Lang, output_lang: Lang, unk_token_str: str):
     with torch.no_grad():
         input_tensor = tensorFromSentence(input_lang, sentence, EOS_token, unk_token_str)
         input_tensor = input_tensor.transpose(0, 1)
@@ -32,7 +34,8 @@ def evaluate(encoder, decoder, sentence, input_lang, output_lang, unk_token_str)
     return decoded_words, decoder_attn
 
 
-def evaluateRandomly(encoder, decoder, input_lang, output_lang, unk_token_str):
+def evaluateRandomly(encoder: RecursiveScriptModule, decoder: RecursiveScriptModule,
+                     input_lang: Lang, output_lang: Lang, unk_token_str: str):
 
     output_sentences = []
 
