@@ -33,7 +33,7 @@ def save_model(model: torch.nn.Module, name: str) -> None:
     return None
 
 
-def load_model(name: str) -> RecursiveScriptModule:
+def load_model(name: str, device) -> RecursiveScriptModule:
     """
     This function is to load a model from the 'models' folder.
 
@@ -46,7 +46,7 @@ def load_model(name: str) -> RecursiveScriptModule:
 
     # define model
     # model: RecursiveScriptModule = torch.jit.load(f"{name}")
-    model = torch.load(f"{name}")
+    model = torch.load(f"{name}", map_location=torch.device(device))
     return model
 
 
