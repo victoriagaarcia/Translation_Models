@@ -12,6 +12,7 @@ import torch.nn.functional as F
 from tqdm.auto import tqdm
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
+from torch.utils.tensorboard import SummaryWriter
 
 import time
 import math
@@ -42,7 +43,6 @@ def timeSince(since: time, percent: float) -> str:
     return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 
 def val_epoch(dataloader: DataLoader, encoder: torch.nn.Module, decoder: torch.nn.Module, 
-              encoder_optimizer: torch.optim.Optimizer, decoder_optimizer: torch.optim.Optimizer,
               criterion: torch.nn.Module, device: torch.device) -> float:
     
     """
@@ -82,8 +82,8 @@ def val_epoch(dataloader: DataLoader, encoder: torch.nn.Module, decoder: torch.n
             )
 
             total_loss += loss.item()
-        
-        return total_loss / len(dataloader)
+            
+        return  total_loss / len(dataloader)
 
     # write metrics
     # writer.add_scalar("Loss/val", np.mean(losses), epoch)
@@ -142,7 +142,7 @@ def train_epoch(dataloader: DataLoader, encoder: torch.nn.Module, decoder: torch
 
 def train(train_dataloader: DataLoader, val_dataloader: DataLoader, encoder: torch.nn.Module, 
           decoder: torch.nn.Module, n_epochs: int, learning_rate: float, device: torch.device,
-          print_every: int =100) -> None:
+          writer: SummaryWriter, print_every: int =100) -> None:
     
     start = time.time()
 
@@ -161,6 +161,7 @@ def train(train_dataloader: DataLoader, val_dataloader: DataLoader, encoder: tor
         # Train loop
         loss = train_epoch(train_dataloader, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, device)
         print_loss_total += loss
+        writer.add_scalar("Loss/train", loss, epoch)
         
         # Print train loss
         if epoch % print_every == 0:
@@ -170,9 +171,9 @@ def train(train_dataloader: DataLoader, val_dataloader: DataLoader, encoder: tor
                                         epoch, epoch / n_epochs * 100, print_loss_avg))
         
         # Val loop
-        loss = val_epoch(val_dataloader, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, device)
-        print_loss_total_val += loss
-
+        loss_val = val_epoch(val_dataloader, encoder, decoder, criterion, device)
+        print_loss_total_val += loss_val
+        writer.add_scalar("Loss/val", loss_val, epoch)
         # Print val loss
         if epoch % print_every == 0:
             print_loss_avg = print_loss_total_val / print_every
