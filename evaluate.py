@@ -157,12 +157,12 @@ if __name__ == "__main__":
     sentences_input = [pair[0] for pair in pairs]
     targets = [pair[1] for pair in pairs]
 
-    # Inputs with targets
-    evaluate(encoder, decoder, sentences_input, targets, word2index_lang1, index2word_lang2, unk_token_str)
+    # # Inputs with targets
+    # evaluate(encoder, decoder, sentences_input, targets, word2index_lang1, index2word_lang2, unk_token_str)
 
     # just wanting to translate a sentence without evaluating
-    # sentence = ''
-    # output_words, _ = evaluate_step(encoder, decoder, sentence, input_lang, output_lang, unk_token_str)
-    # output_sentence = ' '.join(output_words)
-    # print('>', sentence)
-    # print('<', output_sentence)
+    sentence = '"The computer is broken"'
+    output_words, _ = evaluate_step(encoder, decoder, sentence, word2index_lang1, index2word_lang2, unk_token_str)
+    output_sentence = ' '.join(output_words)
+    print('>', sentence)
+    print('<', output_sentence)
