@@ -11,10 +11,6 @@ from utils import load_model
 from nltk.translate.bleu_score import SmoothingFunction
 from nltk.translate.bleu_score import sentence_bleu
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-SOS_token = 0
-EOS_token = 1
-
 
 def evaluate(encoder, decoder, sentence, input_lang, output_lang, unk_token_str):
     with torch.no_grad():

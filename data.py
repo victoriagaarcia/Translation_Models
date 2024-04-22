@@ -6,6 +6,8 @@ import re
 
 import torch
 
+from typing import Dict
+
 from torch.utils.data import DataLoader, Dataset
 from torch.nn.utils.rnn import pad_sequence
 
@@ -24,9 +26,9 @@ class Lang:
             name: name of the language
         """
         self.name = name
-        self.word2index = {"PAD": 0, "SOS": 1, "EOS": 2, "UNK": 3}
-        self.word2count = {}
-        self.index2word = {0: "PAD", 1: "SOS", 2: "EOS", 3: "UNK"}
+        self.word2index: Dict[str, int] = {"PAD": 0, "SOS": 1, "EOS": 2, "UNK": 3}
+        self.word2count: Dict[str, int] = {}
+        self.index2word: Dict[int, str] = {0: "PAD", 1: "SOS", 2: "EOS", 3: "UNK"}
         self.n_words = 4  # Count SOS and EOS
 
     def addSentence(self, sentence: str) -> None:
@@ -51,7 +53,7 @@ class TranslatorDataset(Dataset):
     """
     This class is the Translator dataset
     """
-    def __init__(self, textlang_in: List[List[str]], textlang_out: List[List[str]],
+    def __init__(self, textlang_in: List[str], textlang_out: List[str],
                  lang_in: Lang, lang_out: Lang, end_token: int) -> None:
         """
         Constructor of the TranslatorDataset
@@ -132,7 +134,7 @@ def unicodeToAscii(s: str) -> str:
 
 
 # Lowercase, trim, and remove non-letter characters
-def normalizeString(s: str) -> List[str]:
+def normalizeString(s: str) -> str:
     """
     """
     s = unicodeToAscii(s.lower().strip())
@@ -142,12 +144,12 @@ def normalizeString(s: str) -> List[str]:
 
 
 def collate_fn(
-        batch: int,
+        batch: List[Tuple[str, str]],
         lang_in: Lang,
         lang_out: Lang,
         unk_token_str: str,
         end_token: int
-        ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        ) -> Tuple[torch.Tensor, torch.Tensor, list[int], list[int]]:
     """
     """
     # Sort the batch by the length of text sequences in descending order
@@ -167,10 +169,10 @@ def collate_fn(
     # Calculate the lengths of each element of texts_indx.
     # The minimum length shall be 1, in order to avoid
     # later problems when training the RNN
-    lang1_lengths: List[torch.Tensor] = [max(len(sentence), 1)
-                                         for sentence in lang1_indx]
-    lang2_lengths: List[torch.Tensor] = [max(len(sentence), 1)
-                                         for sentence in lang2_indx]
+    lang1_lengths: List[int] = [max(len(sentence), 1)
+                                for sentence in lang1_indx]
+    lang2_lengths: List[int] = [max(len(sentence), 1)
+                                for sentence in lang2_indx]
 
     # Pad the text sequences to have uniform length
     lan1_padded: torch.Tensor = pad_sequence(lang1_indx, batch_first=True)
