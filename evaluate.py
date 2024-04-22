@@ -1,16 +1,8 @@
 from __future__ import unicode_literals, print_function, division
 from io import open
-import unicodedata
-import re
-import random
 
 import torch
-import torch.nn as nn
-from torch import optim
-import torch.nn.functional as F
-
 import numpy as np
-from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 from data import tensorFromSentence
 
 from data import get_dataloader, normalizeString
@@ -23,12 +15,14 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 SOS_token = 0
 EOS_token = 1
 
+
 def evaluate(encoder, decoder, sentence, input_lang, output_lang, unk_token_str):
     with torch.no_grad():
         input_tensor = tensorFromSentence(input_lang, sentence, EOS_token, unk_token_str)
         input_tensor = input_tensor.transpose(0, 1)
         encoder_outputs, encoder_hidden = encoder(input_tensor)
-        decoder_outputs, decoder_hidden, decoder_attn  = decoder(encoder_outputs, encoder_hidden)
+        decoder_outputs, decoder_hidden, decoder_attn = decoder(encoder_outputs,
+                                                                encoder_hidden)
 
         _, topi = decoder_outputs.topk(1)
         decoded_ids = topi.squeeze()
@@ -41,16 +35,18 @@ def evaluate(encoder, decoder, sentence, input_lang, output_lang, unk_token_str)
             decoded_words.append(output_lang.index2word[idx.item()])
     return decoded_words, decoder_attn
 
+
 def evaluateRandomly(encoder, decoder, input_lang, output_lang, unk_token_str):
 
     output_sentences = []
 
     with open('data/evaluate.txt', 'r') as file:
         lines = file.readlines()
-        
+
         for sentence in lines:
             sentence = normalizeString(sentence)
-            output_words, _ = evaluate(encoder, decoder, sentence, input_lang, output_lang, unk_token_str)
+            output_words, _ = evaluate(encoder, decoder, sentence, input_lang,
+                                       output_lang, unk_token_str)
             output_sentence = ' '.join(output_words)
             print('>', sentence)
             print('<', output_sentence)
@@ -60,6 +56,7 @@ def evaluateRandomly(encoder, decoder, input_lang, output_lang, unk_token_str):
 
     return output_sentences
 
+
 def evaluate_targets():
     with open('data/evaluate_targets.txt', 'r') as file:
         lines = file.readlines()
@@ -67,6 +64,7 @@ def evaluate_targets():
         for sentence in lines:
             targets.append(sentence.split())
     return targets
+
 
 def calculate_bleu(refs: list, hypos: list) -> dict:
     """
@@ -118,8 +116,9 @@ def calculate_bleu(refs: list, hypos: list) -> dict:
     # Return the average BLEU score
     return bleu_means
 
+
 if __name__ == "__main__":
-        
+
     # Hyperparameters
     batch_size: int = 1
 
@@ -136,13 +135,15 @@ if __name__ == "__main__":
     device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # load data
-    input_lang, output_lang, train_dataloader, val_dataloader = get_dataloader(batch_size, unk_token_str, EOS_token, max_length, namelang_in, namelang_out)
+    input_lang, output_lang, train_dataloader, val_dataloader = get_dataloader(
+        batch_size, unk_token_str, EOS_token, max_length, namelang_in, namelang_out)
 
     # load models
     encoder = load_model('models/best_encoder.pt', device)
     decoder = load_model('models/best_decoder.pt', device)
 
-    output_sentences = evaluateRandomly(encoder, decoder, input_lang, output_lang, unk_token_str)
+    output_sentences = evaluateRandomly(encoder, decoder, input_lang,
+                                        output_lang, unk_token_str)
     targets = evaluate_targets()
 
     print(calculate_bleu(targets, output_sentences))
