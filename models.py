@@ -77,11 +77,11 @@ class DecoderRNN(nn.Module):
 class BahdanauAttention(nn.Module):
     def __init__(self, hidden_size: int):
         super(BahdanauAttention, self).__init__()
-        self.Wa = nn.Linear(hidden_size, hidden_size)
-        self.Ua = nn.Linear(hidden_size, hidden_size)
-        self.Va = nn.Linear(hidden_size, 1)
+        self.Wa: nn.Linear = nn.Linear(hidden_size, hidden_size)
+        self.Ua: nn.Linear = nn.Linear(hidden_size, hidden_size)
+        self.Va: nn.Linear = nn.Linear(hidden_size, 1)
 
-    def forward(self, query, keys):
+    def forward(self, query: torch.Tensor, keys: torch.Tensor):
         scores = self.Va(torch.tanh(self.Wa(query) + self.Ua(keys)))
         scores = scores.squeeze(2).unsqueeze(1)
 
@@ -94,11 +94,11 @@ class BahdanauAttention(nn.Module):
 class AttnDecoderRNN(nn.Module):
     def __init__(self, hidden_size: int, output_size: int, dropout_p=0.1):
         super(AttnDecoderRNN, self).__init__()
-        self.embedding = nn.Embedding(output_size, hidden_size)
-        self.attention = BahdanauAttention(hidden_size)
-        self.gru = nn.GRU(2 * hidden_size, hidden_size, batch_first=True)
-        self.out = nn.Linear(hidden_size, output_size)
-        self.dropout = nn.Dropout(dropout_p)
+        self.embedding: nn.Embedding = nn.Embedding(output_size, hidden_size)
+        self.attention: BahdanauAttention = BahdanauAttention(hidden_size)
+        self.gru: nn.GRU = nn.GRU(2 * hidden_size, hidden_size, batch_first=True)
+        self.out: nn.Linear = nn.Linear(hidden_size, output_size)
+        self.dropout: nn.Dropout = nn.Dropout(dropout_p)
 
     def forward(self, encoder_outputs: torch.Tensor,
                 encoder_hidden: torch.Tensor, target_tensor=None
