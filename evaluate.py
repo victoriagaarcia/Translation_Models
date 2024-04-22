@@ -8,13 +8,15 @@ import torch
 import torch.nn as nn
 from torch import optim
 import torch.nn.functional as F
+import pandas as pd
+from typing import List
 
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
-from data import tensorFromSentence
+# from data import tensorFromSentence
 
-from data import get_dataloader, normalizeString
-from utils import load_model
+from data import get_dataloader, normalizeString, filterPairs
+from utils import load_model, load_vocab
 
 from nltk.translate.bleu_score import SmoothingFunction
 from nltk.translate.bleu_score import sentence_bleu
@@ -23,9 +25,16 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 SOS_token = 0
 EOS_token = 1
 
-def evaluate(encoder, decoder, sentence, input_lang, output_lang, unk_token_str):
+def tensorFromSentence(word2index, sentence: str, end_token: int, unk_token_str: str) -> torch.Tensor:
+    """
+    """
+    indexes = [word2index[word] if word in word2index else word2index[unk_token_str] for word in sentence.split(' ')]
+    indexes.append(end_token)
+    return torch.tensor(indexes, dtype=torch.long, device=device).view(-1, 1)
+
+def evaluate_step(encoder, decoder, sentence, word2index_lang1, index2word_lang2, unk_token_str):
     with torch.no_grad():
-        input_tensor = tensorFromSentence(input_lang, sentence, EOS_token, unk_token_str)
+        input_tensor = tensorFromSentence(word2index_lang1, sentence, EOS_token, unk_token_str)
         input_tensor = input_tensor.transpose(0, 1)
         encoder_outputs, encoder_hidden = encoder(input_tensor)
         decoder_outputs, decoder_hidden, decoder_attn  = decoder(encoder_outputs, encoder_hidden)
@@ -38,35 +47,26 @@ def evaluate(encoder, decoder, sentence, input_lang, output_lang, unk_token_str)
             if idx.item() == EOS_token:
                 decoded_words.append('<EOS>')
                 break
-            decoded_words.append(output_lang.index2word[idx.item()])
+            decoded_words.append(index2word_lang2[idx.item()])
     return decoded_words, decoder_attn
 
-def evaluateRandomly(encoder, decoder, input_lang, output_lang, unk_token_str):
+def evaluate(encoder, decoder, input_sentences, targets, word2index_lang1, index2word_lang2, unk_token_str):
 
     output_sentences = []
 
-    with open('data/evaluate.txt', 'r') as file:
-        lines = file.readlines()
-        
-        for sentence in lines:
-            sentence = normalizeString(sentence)
-            output_words, _ = evaluate(encoder, decoder, sentence, input_lang, output_lang, unk_token_str)
-            output_sentence = ' '.join(output_words)
-            print('>', sentence)
-            print('<', output_sentence)
-            print('')
-            output_words = output_words[:-1]
-            output_sentences.append(output_words)
+    for sentence in input_sentences:
+        output_words, _ = evaluate_step(encoder, decoder, sentence, word2index_lang1, index2word_lang2, unk_token_str)
+        output_sentence = ' '.join(output_words)
+        print('>', sentence)
+        print('<', output_sentence)
+        print('')
+        output_words = output_words[:-1]
+        output_sentences.append(output_words)
 
-    return output_sentences
-
-def evaluate_targets():
-    with open('data/evaluate_targets.txt', 'r') as file:
-        lines = file.readlines()
-        targets = []
-        for sentence in lines:
-            targets.append(sentence.split())
-    return targets
+    targets = [target.split() for target in targets]
+    
+    bleu = calculate_bleu(targets, output_sentences)
+    print(bleu)
 
 def calculate_bleu(refs: list, hypos: list) -> dict:
     """
@@ -128,21 +128,43 @@ if __name__ == "__main__":
     EOS_token: int = 2
     unk_token: int = 3
     unk_token_str: str = "UNK"
-    max_length: int = 10
+    max_length: int = 15
     namelang_in: str = 'eng'
-    namelang_out: str = 'fra'
+    # namelang_out: str = 'fra'
+    namelang_out: str = 'spa'
 
     # Set device
     device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # load data
-    input_lang, output_lang, train_dataloader, val_dataloader = get_dataloader(batch_size, unk_token_str, EOS_token, max_length, namelang_in, namelang_out)
+    data: pd.DataFrame = pd.read_csv('data/%s-%s_test.csv' % (namelang_in, namelang_out))
+    data = data.sample(n=100)
+    normalized_data = data.map(lambda x: normalizeString(x) if pd.notna(x) and x.strip() != '' else None)
+    pairs: List[List[str]] = [list(row.dropna()) for _, row in normalized_data.iterrows()]
+    pairs: List[List[str]] = [pair for pair in pairs if len(pair) == 2 and pair[0] != '' and pair[1] != '']
+    pairs = filterPairs(pairs, max_length)
+
+    # # load data
+    # input_lang, output_lang, train_dataloader, val_dataloader = get_dataloader(batch_size, unk_token_str, EOS_token, max_length, namelang_in, namelang_out)
+
+    word2index_lang1 = load_vocab(f"{namelang_in}")
+    word2index_lang2 = load_vocab(f"{namelang_out}")
+      
+    # Crear un diccionario inverso
+    index2word_lang2 = {valor: clave for clave, valor in word2index_lang2.items()}
 
     # load models
     encoder = load_model('models/best_encoder.pt', device)
     decoder = load_model('models/best_decoder.pt', device)
 
-    output_sentences = evaluateRandomly(encoder, decoder, input_lang, output_lang, unk_token_str)
-    targets = evaluate_targets()
+    sentences_input = [pair[0] for pair in pairs]
+    targets = [pair[1] for pair in pairs]
 
-    print(calculate_bleu(targets, output_sentences))
+    # Inputs with targets
+    evaluate(encoder, decoder, sentences_input, targets, word2index_lang1, index2word_lang2, unk_token_str)
+
+    # just wanting to translate a sentence without evaluating
+    # sentence = ''
+    # output_words, _ = evaluate_step(encoder, decoder, sentence, input_lang, output_lang, unk_token_str)
+    # output_sentence = ' '.join(output_words)
+    # print('>', sentence)
+    # print('<', output_sentence)

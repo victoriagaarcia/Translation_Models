@@ -3,7 +3,8 @@ from typing import List, Tuple
 from io import open
 import unicodedata
 import re
-import random
+import pandas as pd
+import csv
 
 import torch
 import torch.nn as nn
@@ -94,8 +95,6 @@ class TranslatorDataset(Dataset):
         """
 
         return self.textlang_in[idx], self.textlang_out[idx]
-        # return self.tensorFromSentence(self.lang_in, self.textlang_in[idx], self.end_token), \
-        #     self.tensorFromSentence(self.lang_out, self.textlang_out[idx], self.end_token)
 
 def tensorFromSentence(lang: Lang, sentence: str, end_token: int, unk_token_str: str) -> torch.Tensor:
     """
@@ -160,12 +159,18 @@ def readLangs(langname_in: str, langname_out: str
     """
     print("Reading lines...")
 
-    # Read the file and split into lines
-    lines = open('data/%s-%s.txt' % (langname_in, langname_out), encoding='utf-8').\
-        read().strip().split('\n')
+    # # Read the file and split into lines
+    # lines = open('data/%s-%s.txt' % (langname_in, langname_out), encoding='utf-8').\
+    #     read().strip().split('\n')
 
-    # Split every line into pairs and normalize
-    pairs = [[normalizeString(s) for s in l.split('\t')] for l in lines]
+    # # Split every line into pairs and normalize
+    # pairs = [[normalizeString(s) for s in l.split('\t')] for l in lines]
+
+    data: pd.DataFrame = pd.read_csv('data/%s-%s.csv' % (langname_in, langname_out))
+
+    normalized_data = data.map(lambda x: normalizeString(x) if pd.notna(x) and x.strip() != '' else None)
+    pairs: List[List[str]] = [list(row.dropna()) for _, row in normalized_data.iterrows()]
+    pairs: List[List[str]] = [pair for pair in pairs if len(pair) == 2 and pair[0] != '' and pair[1] != '']
 
     input_lang = Lang(langname_in)
     output_lang = Lang(langname_out)
@@ -189,6 +194,7 @@ def prepareData(langname_in: str, langname_out: str, max_length: int
     for pair in pairs:
         input_lang.addSentence(pair[0])
         output_lang.addSentence(pair[1])
+
     print("Counted words:")
     print(input_lang.name, input_lang.n_words)
     print(output_lang.name, output_lang.n_words)
@@ -206,7 +212,7 @@ def get_dataloader(
     # Create inputs and outputs
     
     # divide the data into train and validation
-    train_size = round(0.8 * len(pairs))
+    train_size = round(0.7 * len(pairs))
     val_size = round(0.2 * len(pairs))
 
     train_lang_in = [pair[0] for pair in pairs[:train_size]]
@@ -214,6 +220,16 @@ def get_dataloader(
 
     val_lang_in = [pair[0] for pair in pairs[train_size:train_size+val_size]]
     val_lang_out = [pair[1] for pair in pairs[train_size:train_size+val_size]]
+
+    # Save data for test
+    test_lang_in = [pair[0] for pair in pairs[train_size+val_size:]]
+    test_lang_out = [pair[1] for pair in pairs[train_size+val_size:]]
+
+    # Save data for test
+    with open('data/%s-%s_test.csv' % (namelang_in, namelang_out), 'w', newline='', encoding='utf-8') as csvfile:
+        csv_writer = csv.writer(csvfile)
+        for pair in zip(test_lang_in, test_lang_out):
+            csv_writer.writerow(pair)
 
     train_data: Dataset = TranslatorDataset(train_lang_in, train_lang_out, input_lang, output_lang, end_token)
     val_data: Dataset = TranslatorDataset(val_lang_in, val_lang_out, input_lang, output_lang, end_token)

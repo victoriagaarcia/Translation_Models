@@ -12,7 +12,6 @@ import torch.nn.functional as F
 from tqdm.auto import tqdm
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
-from evaluate import evaluateRandomly
 
 import time
 import math
