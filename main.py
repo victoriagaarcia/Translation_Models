@@ -10,6 +10,8 @@ from models import EncoderRNN, DecoderRNN, AttnDecoderRNN, EncoderRNN_Embed
 from train import train
 # from evaluate_pytorch import evaluateRandomly
 from utils import save_model, set_seed, save_vocab
+from torch.utils.tensorboard import SummaryWriter
+
 
 # set all seeds and set number of threads
 set_seed(42)
@@ -24,8 +26,8 @@ def main() -> None:
 
 # Hyperparameters
 hidden_size: int = 512
-batch_size: int = 128
-lr: float = 0.001
+batch_size: int = 64
+lr: float = 0.0001
 n_epochs: int = 60
 
 # Parameters plot
@@ -40,17 +42,18 @@ max_length: int = 15
 unk_token_str: str = "UNK"
 
 namelang_in: str = 'eng'
-# namelang_out: str = 'fra'
-namelang_out: str = 'spa'
+namelang_out: str = 'fra'
+# namelang_out: str = 'spa'
 
 # Set device
 device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# define encoder and decoder names
+# define encoder and decoder names and write
 name_encoder: str = f"encoder_lr_{lr}_hs_{hidden_size}_b_{batch_size}_nep_{n_epochs}" + \
                     f"_maxl_{max_length}_lang1_{namelang_in}_lang2_{namelang_out}"
 name_decoder: str = f"decoder_lr_{lr}_hs_{hidden_size}_b_{batch_size}_nep_{n_epochs}" + \
                     f"_maxl_{max_length}_lang1_{namelang_in}_lang2_{namelang_out}"
+writer: SummaryWriter = SummaryWriter(f"runs/{name_encoder}")
 
 # load embeddings -- we can use embeddings pretrained
 # input_lang_embeddings = WordEmbeddings('en')
@@ -67,7 +70,7 @@ encoder: torch.nn.Module = EncoderRNN(input_lang.n_words, hidden_size).to(device
 
 decoder: torch.nn.Module = AttnDecoderRNN(hidden_size, output_lang.n_words).to(device)
 # with embeddings pretrained
-# decoder: torch.nn.Module = AttnDecoderRNN(hidden_size, output_lang.n_words).to(device)
+# decoder: torch.nn.Module = AttnDecoderRNN_Embed(hidden_size, output_lang.n_words, output_lang_embeddings).to(device)
 
 # Train the model
 train(train_dataloader, val_dataloader, encoder, decoder,
