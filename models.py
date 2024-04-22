@@ -8,18 +8,33 @@ from typing import Tuple
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 SOS_token = 1
-MAX_LENGTH = 10
+MAX_LENGTH = 15
 
 
 class EncoderRNN(nn.Module):
-    def __init__(self, input_size: int, hidden_size: int, dropout_p=0.3):
+    def __init__(self, input_size: int, hidden_size: int, dropout_p=0.4):
         super(EncoderRNN, self).__init__()
         self.hidden_size = hidden_size
 
-        self.embedding: nn.Embedding = nn.Embedding(input_size, hidden_size)
-        # self.embedding = embeddings.embedding
+        self.embedding: nn.Embedding  = nn.Embedding(input_size, hidden_size)
         self.gru: nn.GRU = nn.GRU(hidden_size, hidden_size, batch_first=True)
+
         self.dropout: nn.Dropout = nn.Dropout(dropout_p)
+
+    def forward(self, input):
+        embedded = self.dropout(self.embedding(input))
+        output, hidden = self.gru(embedded)
+        return output, hidden
+
+class EncoderRNN_Embed(nn.Module):
+    def __init__(self, hidden_size, embeddings, dropout_p=0.4,  embed_size = 300):
+        super().__init__()
+        self.hidden_size = hidden_size
+
+        self.embedding: nn.Embedding  = embeddings.embedding
+        self.gru = nn.GRU(embed_size, hidden_size, batch_first=True)
+
+        self.dropout = nn.Dropout(dropout_p)
 
     def forward(self, input: torch.Tensor):
         embedded = self.dropout(self.embedding(input))
@@ -31,7 +46,6 @@ class DecoderRNN(nn.Module):
     def __init__(self, hidden_size: int, output_size: int):
         super(DecoderRNN, self).__init__()
         self.embedding: nn.Embedding = nn.Embedding(output_size, hidden_size)
-        # self.embedding = embeddings.embedding
         self.gru: nn.GRU = nn.GRU(hidden_size, hidden_size, batch_first=True)
         self.out: nn.Linear = nn.Linear(hidden_size, output_size)
 

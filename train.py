@@ -4,7 +4,9 @@ import torch
 import torch.nn as nn
 from torch import optim
 from tqdm.auto import tqdm
-from torch.utils.data import DataLoader
+import numpy as np
+from torch.utils.data import TensorDataset, DataLoader, RandomSampler
+
 
 import time
 import math
