@@ -1,14 +1,8 @@
 from __future__ import unicode_literals, print_function, division
 
-from io import open
-import unicodedata
-import re
-import random
-
 import torch
 import torch.nn as nn
 from torch import optim
-import torch.nn.functional as F
 from tqdm.auto import tqdm
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
@@ -18,23 +12,21 @@ import time
 import math
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
-import matplotlib.ticker as ticker
 
 SOS_token = 1
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def asMinutes(s: time) -> str:
+def asMinutes(s: float) -> str:
     """
-    
     """
     m = math.floor(s / 60)
     s -= m * 60
     return '%dm %ds' % (m, s)
 
-def timeSince(since: time, percent: float) -> str:
+
+def timeSince(since: float, percent: float) -> str:
     """
-    
     """
     now = time.time()
     s = now - since
@@ -44,14 +36,14 @@ def timeSince(since: time, percent: float) -> str:
 
 def val_epoch(dataloader: DataLoader, encoder: torch.nn.Module, decoder: torch.nn.Module, 
               criterion: torch.nn.Module, device: torch.device) -> float:
-    
+
     """
     This function computes the validation for each epoch.
 
     Args:
-        
+
     """
-    
+
     # set model to eval mode
     encoder.eval()
     decoder.eval()
@@ -64,16 +56,19 @@ def val_epoch(dataloader: DataLoader, encoder: torch.nn.Module, decoder: torch.n
         for data in dataloader:
             # Load data
             input_tensor, target_tensor, _, _ = data
-            
-            # Adjust dimensions 
-            input_tensor = input_tensor.squeeze(-1) # Dimensions: [Batch Size, Sequence Length, 1]
-            target_tensor = target_tensor.squeeze(-1) # Dimensions: [Batch Size, Sequence Length, 1]
+
+            # Adjust dimensions
+            # input_tensor dimensions: [Batch Size, Sequence Length, 1]
+            input_tensor = input_tensor.squeeze(-1)
+            # target_tensor dimensions: [Batch Size, Sequence Length, 1]
+            target_tensor = target_tensor.squeeze(-1)
 
             # Compute encoder forward
             encoder_outputs, encoder_hidden = encoder(input_tensor)
 
             # Compute decoder forward
-            decoder_outputs, _, _ = decoder(encoder_outputs, encoder_hidden, target_tensor)
+            decoder_outputs, _, _ = decoder(encoder_outputs,
+                                            encoder_hidden, target_tensor)
 
             # Compute loss
             loss = criterion(
@@ -82,16 +77,13 @@ def val_epoch(dataloader: DataLoader, encoder: torch.nn.Module, decoder: torch.n
             )
 
             total_loss += loss.item()
-            
-        return  total_loss / len(dataloader)
 
-    # write metrics
-    # writer.add_scalar("Loss/val", np.mean(losses), epoch)
-    # writer.add_scalar("Accuracy/val", acc.compute(), epoch)
+        return total_loss / len(dataloader)
 
-def train_epoch(dataloader: DataLoader, encoder: torch.nn.Module, decoder: torch.nn.Module, 
-                encoder_optimizer: torch.optim.Optimizer, decoder_optimizer: torch.optim.Optimizer,
-                  criterion: torch.nn.Module, device: torch.device) -> float:
+def train_epoch(dataloader: DataLoader, encoder: torch.nn.Module,
+                decoder: torch.nn.Module, encoder_optimizer: torch.optim.Optimizer,
+                decoder_optimizer: torch.optim.Optimizer, criterion: torch.nn.Module,
+                device: torch.device) -> float:
     """
     This function computes the training for each epoch.
 
@@ -107,10 +99,12 @@ def train_epoch(dataloader: DataLoader, encoder: torch.nn.Module, decoder: torch
     for data in tqdm(dataloader):
         # Load data
         input_tensor, target_tensor, _, _ = data
-        
-        # Adjust dimensions 
-        input_tensor = input_tensor.squeeze(-1) # Dimensions: [Batch Size, Sequence Length, 1]
-        target_tensor = target_tensor.squeeze(-1) # Dimensions: [Batch Size, Sequence Length, 1]
+
+        # Adjust dimensions
+        # input_tensor dimensions: [Batch Size, Sequence Length, 1]
+        input_tensor = input_tensor.squeeze(-1)
+        # target_tensor dimensions: [Batch Size, Sequence Length, 1]
+        target_tensor = target_tensor.squeeze(-1)
 
         # zero the parameter gradients
         encoder_optimizer.zero_grad()
@@ -147,8 +141,8 @@ def train(train_dataloader: DataLoader, val_dataloader: DataLoader, encoder: tor
     start = time.time()
 
     # Reset every print_every
-    print_loss_total = 0 
-    print_loss_total_val = 0  
+    print_loss_total: float = 0.0
+    print_loss_total_val: float = 0.0
 
     # Define optimizers
     encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate)
@@ -159,7 +153,8 @@ def train(train_dataloader: DataLoader, val_dataloader: DataLoader, encoder: tor
 
     for epoch in tqdm(range(1, n_epochs + 1)):
         # Train loop
-        loss = train_epoch(train_dataloader, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, device)
+        loss = train_epoch(train_dataloader, encoder, decoder, encoder_optimizer,
+                           decoder_optimizer, criterion, device)
         print_loss_total += loss
         writer.add_scalar("Loss/train", loss, epoch)
         
@@ -168,8 +163,8 @@ def train(train_dataloader: DataLoader, val_dataloader: DataLoader, encoder: tor
             print_loss_avg = print_loss_total / print_every
             print_loss_total = 0
             print('%s (%d %d%%) %.4f' % (timeSince(start, epoch / n_epochs),
-                                        epoch, epoch / n_epochs * 100, print_loss_avg))
-        
+                                         epoch, epoch / n_epochs * 100, print_loss_avg))
+
         # Val loop
         loss_val = val_epoch(val_dataloader, encoder, decoder, criterion, device)
         print_loss_total_val += loss_val
@@ -177,6 +172,6 @@ def train(train_dataloader: DataLoader, val_dataloader: DataLoader, encoder: tor
         # Print val loss
         if epoch % print_every == 0:
             print_loss_avg = print_loss_total_val / print_every
-            print_loss_total_val = 0
+            print_loss_total_val = 0   
             print('%s (%d %d%%) %.4f' % (timeSince(start, epoch / n_epochs),
                                         epoch, epoch / n_epochs * 100, print_loss_avg))

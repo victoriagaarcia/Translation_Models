@@ -1,8 +1,5 @@
 from __future__ import unicode_literals, print_function, division
 from io import open
-import unicodedata
-import re
-import random
 
 import torch
 import torch.nn as nn
@@ -13,17 +10,14 @@ from typing import List
 
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
-# from data import tensorFromSentence
-
-from data import get_dataloader, normalizeString, filterPairs
+from data import get_dataloader, normalizeString, filterPairs, tensorFromSentence, Lang
 from utils import load_model, load_vocab
+from torch.jit import RecursiveScriptModule
 
 from nltk.translate.bleu_score import SmoothingFunction
 from nltk.translate.bleu_score import sentence_bleu
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-SOS_token = 0
-EOS_token = 1
+
 
 def tensorFromSentence(word2index, sentence: str, end_token: int, unk_token_str: str) -> torch.Tensor:
     """
@@ -32,12 +26,15 @@ def tensorFromSentence(word2index, sentence: str, end_token: int, unk_token_str:
     indexes.append(end_token)
     return torch.tensor(indexes, dtype=torch.long, device=device).view(-1, 1)
 
-def evaluate_step(encoder, decoder, sentence, word2index_lang1, index2word_lang2, unk_token_str):
+def evaluate_step(encoder: RecursiveScriptModule, decoder: RecursiveScriptModule,
+                  sentence: str, word2index_lang1, index2word_lang2, unk_token_str: str):
+
     with torch.no_grad():
         input_tensor = tensorFromSentence(word2index_lang1, sentence, EOS_token, unk_token_str)
         input_tensor = input_tensor.transpose(0, 1)
         encoder_outputs, encoder_hidden = encoder(input_tensor)
-        decoder_outputs, decoder_hidden, decoder_attn  = decoder(encoder_outputs, encoder_hidden)
+        decoder_outputs, decoder_hidden, decoder_attn = decoder(encoder_outputs,
+                                                                encoder_hidden)
 
         _, topi = decoder_outputs.topk(1)
         decoded_ids = topi.squeeze()
@@ -50,7 +47,8 @@ def evaluate_step(encoder, decoder, sentence, word2index_lang1, index2word_lang2
             decoded_words.append(index2word_lang2[idx.item()])
     return decoded_words, decoder_attn
 
-def evaluate(encoder, decoder, input_sentences, targets, word2index_lang1, index2word_lang2, unk_token_str):
+def evaluate(encoder: RecursiveScriptModule, decoder: RecursiveScriptModule,
+             input_sentences, targets, word2index_lang1, index2word_lang2, unk_token_str: str):
 
     output_sentences = []
 
@@ -67,6 +65,7 @@ def evaluate(encoder, decoder, input_sentences, targets, word2index_lang1, index
     
     bleu = calculate_bleu(targets, output_sentences)
     print(bleu)
+
 
 def calculate_bleu(refs: list, hypos: list) -> dict:
     """
@@ -118,8 +117,9 @@ def calculate_bleu(refs: list, hypos: list) -> dict:
     # Return the average BLEU score
     return bleu_means
 
+
 if __name__ == "__main__":
-        
+
     # Hyperparameters
     batch_size: int = 1
 
@@ -143,14 +143,12 @@ if __name__ == "__main__":
     pairs: List[List[str]] = [pair for pair in pairs if len(pair) == 2 and pair[0] != '' and pair[1] != '']
     pairs = filterPairs(pairs, max_length)
 
-    # # load data
-    # input_lang, output_lang, train_dataloader, val_dataloader = get_dataloader(batch_size, unk_token_str, EOS_token, max_length, namelang_in, namelang_out)
-
     word2index_lang1 = load_vocab(f"{namelang_in}")
     word2index_lang2 = load_vocab(f"{namelang_out}")
       
     # Crear un diccionario inverso
     index2word_lang2 = {valor: clave for clave, valor in word2index_lang2.items()}
+
 
     # load models
     encoder = load_model('models/best_encoder.pt', device)
