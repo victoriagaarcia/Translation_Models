@@ -58,8 +58,7 @@ To evaluate the model, run the following command:
 The repository is structured as follows:
    
 translation-model/
-│
-├── README.md          # This README file.
-├── requirements.txt   # The Python dependencies.
-├── src/               # Contains the source code.
-├── data/              # Contains the data processing scripts.
+* README.md          # This README file.
+* requirements.txt   # The Python dependencies.
+* src/               # Contains the source code.
+* data/              # Contains the data processing scripts.
