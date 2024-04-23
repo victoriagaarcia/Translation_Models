@@ -4,8 +4,7 @@ import torch
 import torch.nn as nn
 from torch import optim
 from tqdm.auto import tqdm
-import numpy as np
-from torch.utils.data import TensorDataset, DataLoader, RandomSampler
+from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 import time
@@ -19,7 +18,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def asMinutes(s: float) -> str:
     """
+    Function to convert seconds to minutes and seconds.
+
+    Args:
+        s: seconds to convert.
+
+    Returns:
+        string with the minutes and seconds.
     """
+
     m = math.floor(s / 60)
     s -= m * 60
     return '%dm %ds' % (m, s)
@@ -27,21 +34,38 @@ def asMinutes(s: float) -> str:
 
 def timeSince(since: float, percent: float) -> str:
     """
+    Function to compute the time since the start of the training.
+
+    Args:
+        since: start time.
+        percent: percentage of the training.
+
+    Returns:
+        string with the time since the start and the time remaining.
     """
+
     now = time.time()
     s = now - since
     es = s / (percent)
     rs = es - s
     return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 
-def val_epoch(dataloader: DataLoader, encoder: torch.nn.Module, decoder: torch.nn.Module, 
+
+def val_epoch(dataloader: DataLoader, encoder: torch.nn.Module, decoder: torch.nn.Module,
               criterion: torch.nn.Module, device: torch.device) -> float:
 
     """
     This function computes the validation for each epoch.
 
     Args:
+        dataloader: DataLoader with the validation data.
+        encoder: encoder model.
+        decoder: decoder model.
+        criterion: loss function.
+        device: device to run the computation.
 
+    Returns:
+        average loss.
     """
 
     # set model to eval mode
@@ -80,6 +104,7 @@ def val_epoch(dataloader: DataLoader, encoder: torch.nn.Module, decoder: torch.n
 
         return total_loss / len(dataloader)
 
+
 def train_epoch(dataloader: DataLoader, encoder: torch.nn.Module,
                 decoder: torch.nn.Module, encoder_optimizer: torch.optim.Optimizer,
                 decoder_optimizer: torch.optim.Optimizer, criterion: torch.nn.Module,
@@ -88,6 +113,16 @@ def train_epoch(dataloader: DataLoader, encoder: torch.nn.Module,
     This function computes the training for each epoch.
 
     Args:
+        dataloader: DataLoader with the training data.
+        encoder: encoder model.
+        decoder: decoder model.
+        encoder_optimizer: encoder optimizer.
+        decoder_optimizer: decoder optimizer.
+        criterion: loss function.
+        device: device to run the computation.
+
+    Returns:
+        average loss.
     """
 
     total_loss = 0
@@ -115,7 +150,7 @@ def train_epoch(dataloader: DataLoader, encoder: torch.nn.Module,
 
         # Compute decoder forward
         decoder_outputs, _, _ = decoder(encoder_outputs, encoder_hidden, target_tensor)
-        
+
         # Compute loss
         loss = criterion(
             decoder_outputs.view(-1, decoder_outputs.size(-1)),
@@ -134,10 +169,27 @@ def train_epoch(dataloader: DataLoader, encoder: torch.nn.Module,
 
     return total_loss / len(dataloader)
 
-def train(train_dataloader: DataLoader, val_dataloader: DataLoader, encoder: torch.nn.Module, 
-          decoder: torch.nn.Module, n_epochs: int, learning_rate: float, device: torch.device,
-          writer: SummaryWriter, print_every: int =100) -> None:
-    
+
+def train(train_dataloader: DataLoader, val_dataloader: DataLoader,
+          encoder: torch.nn.Module, decoder: torch.nn.Module,
+          n_epochs: int, learning_rate: float, device: torch.device,
+          writer: SummaryWriter, print_every: int = 100) -> None:
+
+    """
+    This function trains the model.
+
+    Args:
+        train_dataloader: DataLoader with the training data.
+        val_dataloader: DataLoader with the validation data.
+        encoder: encoder model.
+        decoder: decoder model.
+        n_epochs: number of epochs.
+        learning_rate: learning rate.
+        device: device to run the computation.
+        writer: tensorboard writer.
+        print_every: print every n epochs.
+    """
+
     start = time.time()
 
     # Reset every print_every
@@ -157,7 +209,7 @@ def train(train_dataloader: DataLoader, val_dataloader: DataLoader, encoder: tor
                            decoder_optimizer, criterion, device)
         print_loss_total += loss
         writer.add_scalar("Loss/train", loss, epoch)
-        
+
         # Print train loss
         if epoch % print_every == 0:
             print_loss_avg = print_loss_total / print_every
@@ -172,6 +224,6 @@ def train(train_dataloader: DataLoader, val_dataloader: DataLoader, encoder: tor
         # Print val loss
         if epoch % print_every == 0:
             print_loss_avg = print_loss_total_val / print_every
-            print_loss_total_val = 0   
+            print_loss_total_val = 0
             print('%s (%d %d%%) %.4f' % (timeSince(start, epoch / n_epochs),
-                                        epoch, epoch / n_epochs * 100, print_loss_avg))
+                                         epoch, epoch / n_epochs * 100, print_loss_avg))

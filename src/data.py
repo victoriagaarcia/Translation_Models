@@ -20,6 +20,7 @@ class Lang:
     """
     This class is the Language
     """
+
     def __init__(self, name: str) -> None:
         """
         Constructor of Lang.
@@ -35,13 +36,21 @@ class Lang:
 
     def addSentence(self, sentence: str) -> None:
         """
+        Function to add a sentence to the language
+        Args:
+            sentence: sentence to add to the language
         """
+
         for word in sentence.split(' '):
             self.addWord(word)
 
     def addWord(self, word: str) -> None:
         """
+        Function to add a word to the language
+        Args:
+            word: word to add to the language
         """
+
         if word not in self.word2index:
             self.word2index[word] = self.n_words
             self.word2count[word] = 1
@@ -67,6 +76,7 @@ class TranslatorDataset(Dataset):
             lang_out: output language class
             end_token: last token for every sentence
         """
+
         self.textlang_in = textlang_in
         self.textlang_out = textlang_out
         self.lang_in = lang_in
@@ -97,6 +107,7 @@ class TranslatorDataset(Dataset):
 
         return self.textlang_in[idx], self.textlang_out[idx]
 
+
 def tensorFromSentence(
         lang: Lang,
         sentence: str,
@@ -105,7 +116,18 @@ def tensorFromSentence(
         ) -> torch.Tensor:
 
     """
+    Function to convert a sentence to a tensor
+
+    Args:
+        lang: language class
+        sentence: sentence to convert to tensor
+        end_token: last token for every sentence
+        unk_token_str: unknown token string
+
+    Returns:
+        tensor with the indexes of the words in the sentence
     """
+
     indexes = [lang.word2index[word] if word in lang.word2index
                else lang.word2index[unk_token_str] for word in sentence.split(' ')]
     indexes.append(end_token)
@@ -114,7 +136,13 @@ def tensorFromSentence(
 
 def filterPairs(pairs: List[List[str]], max_length: int) -> List[List[str]]:
     """
+    Function to filter pairs with a maximum length
+
+    Args:
+        pairs: list of pairs
+        max_length: maximum length of the sentences
     """
+
     return [pair for pair in pairs if len(pair[0].split(' ')) < max_length and
             len(pair[1].split(' ')) < max_length]
 
@@ -122,7 +150,15 @@ def filterPairs(pairs: List[List[str]], max_length: int) -> List[List[str]]:
 # Turn a Unicode string to plain ASCII
 def unicodeToAscii(s: str) -> str:
     """
+    Function to convert a unicode string to ASCII
+
+    Args:
+        s: unicode string
+
+    Returns:
+        ASCII string
     """
+
     return ''.join(
         c for c in unicodedata.normalize('NFD', s)
         if unicodedata.category(c) != 'Mn'
@@ -132,7 +168,15 @@ def unicodeToAscii(s: str) -> str:
 # Lowercase, trim, and remove non-letter characters
 def normalizeString(s: str) -> str:
     """
+    Function to normalize a string
+
+    Args:
+        s: string
+
+    Returns:
+        normalized string
     """
+
     s = unicodeToAscii(s.lower().strip())
     s = re.sub(r"([.!?])", r" \1", s)
     s = re.sub(r"[^a-zA-Z!?]+", r" ", s)
@@ -147,7 +191,19 @@ def collate_fn(
         end_token: int
         ) -> Tuple[torch.Tensor, torch.Tensor, list[int], list[int]]:
     """
+    Function to collate the batch
+
+    Args:
+        batch: batch of texts
+        lang_in: input language class
+        lang_out: output language class
+        unk_token_str: unknown token string
+        end_token: last token for every sentence
+
+    Returns:
+        tuple with the input and output tensors
     """
+
     # Sort the batch by the length of text sequences in descending order
     batch = sorted(batch, key=lambda x: len(x[0]), reverse=True)
 
@@ -180,18 +236,26 @@ def collate_fn(
 def readLangs(langname_in: str, langname_out: str
               ) -> Tuple[Lang, Lang, List[List[str]]]:
     """
-    """
-    print("Reading lines...")
+    Function to read the languages
 
-    # # Read the file and split into lines
-    # lines = open('data/%s-%s.txt' % (langname_in, langname_out), encoding='utf-8').\
-    #     read().strip().split('\n')
+    Args:
+        langname_in: input language name
+        langname_out: output language name
+
+    Returns:
+        input language, output language and pairs of sentences
+    """
+
+    print("Reading lines...")
 
     data: pd.DataFrame = pd.read_csv('data/%s-%s.csv' % (langname_in, langname_out))
 
-    normalized_data = data.map(lambda x: normalizeString(x) if pd.notna(x) and x.strip() != '' else None)
-    pairs: List[List[str]] = [list(row.dropna()) for _, row in normalized_data.iterrows()]
-    pairs: List[List[str]] = [pair for pair in pairs if len(pair) == 2 and pair[0] != '' and pair[1] != '']
+    normalized_data = data.map(lambda x: normalizeString(x)
+                               if pd.notna(x) and x.strip() != '' else None)
+    pairs: List[List[str]] = [list(row.dropna())
+                              for _, row in normalized_data.iterrows()]
+    pairs = [pair for pair in pairs
+             if len(pair) == 2 and pair[0] != '' and pair[1] != '']
 
     input_lang = Lang(langname_in)
     output_lang = Lang(langname_out)
@@ -202,7 +266,17 @@ def readLangs(langname_in: str, langname_out: str
 def prepareData(langname_in: str, langname_out: str, max_length: int
                 ) -> Tuple[Lang, Lang, List[List[str]]]:
     """
+    Function to prepare the data
+
+    Args:
+        langname_in: input language name
+        langname_out: output language name
+        max_length: maximum length of the sentences
+
+    Returns:
+        input language, output language and pairs of sentences
     """
+
     # Read data
     input_lang, output_lang, pairs = readLangs(langname_in, langname_out)
 
@@ -228,6 +302,20 @@ def get_dataloader(
     batch_size: int, unk_token_str: str, end_token: int,
     max_length: int, namelang_in: str, namelang_out: str
 ) -> Tuple[Lang, Lang, DataLoader, DataLoader]:
+    """
+    Function to get the dataloader
+
+    Args:
+        batch_size: batch size
+        unk_token_str: unknown token string
+        end_token: last token for every sentence
+        max_length: maximum length of the sentences
+        namelang_in: input language name
+        namelang_out: output language name
+
+    Returns:
+        input language, output language and dataloaders
+    """
 
     # Load and preprocess data
     input_lang, output_lang, pairs = prepareData(namelang_in, namelang_out, max_length)
@@ -248,7 +336,8 @@ def get_dataloader(
     test_lang_out = [pair[1] for pair in pairs[train_size+val_size:]]
 
     # Save data for test
-    with open('data/%s-%s_test.csv' % (namelang_in, namelang_out), 'w', newline='', encoding='utf-8') as csvfile:
+    with open('data/%s-%s_test.csv' % (namelang_in, namelang_out),
+              'w', newline='', encoding='utf-8') as csvfile:
         csv_writer = csv.writer(csvfile)
         for pair in zip(test_lang_in, test_lang_out):
             csv_writer.writerow(pair)

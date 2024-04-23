@@ -1,14 +1,12 @@
 # deep learning libraries
 import torch
-from flair.embeddings import WordEmbeddings
+# from flair.embeddings import WordEmbeddings
 
 # own modules
 from data import get_dataloader
-
-from models import EncoderRNN, DecoderRNN, AttnDecoderRNN, EncoderRNN_Embed
-
+from models import EncoderRNN, AttnDecoderRNN
+# from models import DecoderRNN, EncoderRNN_Embed
 from train import train
-# from evaluate_pytorch import evaluateRandomly
 from utils import save_model, set_seed, save_vocab
 from torch.utils.tensorboard import SummaryWriter
 
@@ -66,13 +64,15 @@ input_lang, output_lang, train_dataloader, val_dataloader = get_dataloader(
 # Define model: encoder + decoder with attention
 encoder: torch.nn.Module = EncoderRNN(input_lang.n_words, hidden_size).to(device)
 # with embeddings pretrained
-# encoder: torch.nn.Module = EncoderRNN_Embed(hidden_size, input_lang_embeddings).to(device)
+# encoder: torch.nn.Module = EncoderRNN_Embed(hidden_size,
+# input_lang_embeddings).to(device)
 
 # without attention
 # decoder: torch.nn.Module = DecoderRNN(hidden_size, output_lang.n_words).to(device)
 decoder: torch.nn.Module = AttnDecoderRNN(hidden_size, output_lang.n_words).to(device)
 # with embeddings pretrained
-# decoder: torch.nn.Module = AttnDecoderRNN_Embed(hidden_size, output_lang.n_words, output_lang_embeddings).to(device)
+# decoder: torch.nn.Module = AttnDecoderRNN_Embed(hidden_size,
+# output_lang.n_words, output_lang_embeddings).to(device)
 
 # Save vocab
 save_vocab(input_lang.word2index, f"{namelang_in}")
