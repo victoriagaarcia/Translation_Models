@@ -35,7 +35,7 @@ def evaluate_step(encoder: RecursiveScriptModule, decoder: RecursiveScriptModule
         encoder_outputs, encoder_hidden = encoder(input_tensor)
         decoder_outputs, decoder_hidden, decoder_attn = decoder(encoder_outputs,
                                                                 encoder_hidden)
-
+        
         _, topi = decoder_outputs.topk(1)
         decoded_ids = topi.squeeze()
 
@@ -46,6 +46,7 @@ def evaluate_step(encoder: RecursiveScriptModule, decoder: RecursiveScriptModule
                 break
             decoded_words.append(index2word_lang2[idx.item()])
     return decoded_words, decoder_attn
+
 
 def evaluate(encoder: RecursiveScriptModule, decoder: RecursiveScriptModule,
              input_sentences, targets, word2index_lang1, index2word_lang2, unk_token_str: str):
@@ -130,8 +131,8 @@ if __name__ == "__main__":
     unk_token_str: str = "UNK"
     max_length: int = 15
     namelang_in: str = 'eng'
-    # namelang_out: str = 'fra'
-    namelang_out: str = 'spa'
+    namelang_out: str = 'fra'
+    # namelang_out: str = 'spa'
 
     # Set device
     device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -157,12 +158,12 @@ if __name__ == "__main__":
     sentences_input = [pair[0] for pair in pairs]
     targets = [pair[1] for pair in pairs]
 
-    # # Inputs with targets
-    # evaluate(encoder, decoder, sentences_input, targets, word2index_lang1, index2word_lang2, unk_token_str)
+    # Inputs with targets
+    evaluate(encoder, decoder, sentences_input, targets, word2index_lang1, index2word_lang2, unk_token_str)
 
-    # just wanting to translate a sentence without evaluating
-    sentence = '"The computer is broken"'
-    output_words, _ = evaluate_step(encoder, decoder, sentence, word2index_lang1, index2word_lang2, unk_token_str)
-    output_sentence = ' '.join(output_words)
-    print('>', sentence)
-    print('<', output_sentence)
+    # # just wanting to translate a sentence without evaluating
+    # sentence = '"The computer is broken"'
+    # output_words, _ = evaluate_step(encoder, decoder, sentence, word2index_lang1, index2word_lang2, unk_token_str)
+    # output_sentence = ' '.join(output_words)
+    # print('>', sentence)
+    # print('<', output_sentence)
