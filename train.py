@@ -115,7 +115,7 @@ def train_epoch(dataloader: DataLoader, encoder: torch.nn.Module,
 
         # Compute decoder forward
         decoder_outputs, _, _ = decoder(encoder_outputs, encoder_hidden, target_tensor)
-
+        
         # Compute loss
         loss = criterion(
             decoder_outputs.view(-1, decoder_outputs.size(-1)),

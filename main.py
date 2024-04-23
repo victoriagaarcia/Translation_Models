@@ -68,17 +68,19 @@ encoder: torch.nn.Module = EncoderRNN(input_lang.n_words, hidden_size).to(device
 # with embeddings pretrained
 # encoder: torch.nn.Module = EncoderRNN_Embed(hidden_size, input_lang_embeddings).to(device)
 
+# without attention
+# decoder: torch.nn.Module = DecoderRNN(hidden_size, output_lang.n_words).to(device)
 decoder: torch.nn.Module = AttnDecoderRNN(hidden_size, output_lang.n_words).to(device)
 # with embeddings pretrained
 # decoder: torch.nn.Module = AttnDecoderRNN_Embed(hidden_size, output_lang.n_words, output_lang_embeddings).to(device)
 
-# Train the model
-train(train_dataloader, val_dataloader, encoder, decoder,
-      n_epochs, lr, device, print_every)
-
 # Save vocab
 save_vocab(input_lang.word2index, f"{namelang_in}")
 save_vocab(output_lang.word2index, f"{namelang_out}")
+
+# Train the model
+train(train_dataloader, val_dataloader, encoder, decoder,
+      n_epochs, lr, device, writer, print_every)
 
 # Save models (encoder and decoder)
 save_model(encoder, name_encoder)

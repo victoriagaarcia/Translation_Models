@@ -115,8 +115,7 @@ class AttnDecoderRNN(nn.Module):
         self.dropout: nn.Dropout = nn.Dropout(dropout_p)
 
     def forward(self, encoder_outputs: torch.Tensor,
-                encoder_hidden: torch.Tensor, target_tensor=None
-                ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+                encoder_hidden: torch.Tensor, target_tensor=None) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         batch_size = encoder_outputs.size(0)
 
         max_length = target_tensor.size(1) if target_tensor is not None else MAX_LENGTH
@@ -131,6 +130,7 @@ class AttnDecoderRNN(nn.Module):
             decoder_output, decoder_hidden, attn_weights = self.forward_step(
                 decoder_input, decoder_hidden, encoder_outputs
             )
+            
             decoder_outputs_list.append(decoder_output)
             attentions_list.append(attn_weights)
 
@@ -138,9 +138,81 @@ class AttnDecoderRNN(nn.Module):
                 # Teacher forcing: Feed the target as the next input
                 decoder_input = target_tensor[:, i].unsqueeze(1)  # Teacher forcing
             else:
+                # # Without teacher forcing: use its own predictions as the next input
+                # scores, words = decoder_output.topk(beam_size)
+                
                 # Without teacher forcing: use its own predictions as the next input
                 _, topi = decoder_output.topk(1)
                 decoder_input = topi.squeeze(-1).detach()  # detach from history as input
+                
+                # # normalize the scores
+                # scores = scores / scores.sum()
+                
+                # words_predictions = []
+                # probabilities = []
+                    
+                # # get the k best captions
+                # for i in range(beam_size):
+                #     predicted = torch.tensor([words[0, i].item()], device=device)
+                #     probability = scores[0, i].item()
+                #     words_predictions.append([predicted.item()])
+                #     probabilities.append(probability)
+                    
+                # for j in range(2, MAX_LENGTH):
+                #     # initialize the lists
+                #     new_words_predictions = []
+                #     new_probabilities = []
+                        
+                #     # for each caption in the beam, get the k best captions
+                #     for i in range(beam_size):
+                #         # if the last word is the end token, stop
+                #         if words_predictions[i][-1] == word2index["EOS"]:
+                #             new_words_predictions.append(words_predictions[i])
+                #             new_probabilities.append(probabilities[i])
+                            
+                #         else:
+                #             # pass the features and the states through the lstm
+                #             decoder_output, decoder_hidden, attn_weights = self.forward_step(
+                #                 words_predictions[i][-1], decoder_hidden, encoder_outputs
+                #             )
+                            
+                #             scores, words = decoder_output.topk(beam_size)
+                #             # normalize the scores
+                #             scores = scores / scores.sum()
+
+                #             # get the k best captions and its probabilities
+                #             for k in range(beam_size):
+                #                 predicted = torch.tensor(
+                #                     [words[0, k].item()], device=device
+                #                 )
+                #                 new_probabilities.append(
+                #                     probabilities[i]
+                #                     * scores[0, k].item()
+                #                     * (MAX_LENGTH - j)
+                #                     / MAX_LENGTH
+                #                 )
+                #                 new_words_predictions.append(words_predictions[i] + [predicted.item()])
+                    
+                # # rank the captions by probability and get the k best
+                # best_words_predictions = sorted(
+                #     list(
+                #         zip(
+                #             new_words_predictions,
+                #             new_probabilities,
+                #         )
+                #     ),
+                #     key=lambda x: x[1],
+                #     reverse=True,
+                # )[:beam_size]
+                
+                # words_predictions = [x[0] for x in best_words_predictions]
+                # probabilities = [x[1] for x in best_words_predictions]
+
+                # # normalize the probabilities
+                # probabilities = [p / sum(probabilities) for p in probabilities]
+                
+                
+
 
         decoder_outputs: torch.Tensor = torch.cat(decoder_outputs_list, dim=1)
         decoder_outputs = F.log_softmax(decoder_outputs, dim=-1)
