@@ -1,5 +1,6 @@
 tensorboard
 torchtext
+torch
 numpy
 pandas
 utils>=1.0.0

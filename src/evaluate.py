@@ -1,16 +1,11 @@
 from __future__ import unicode_literals, print_function, division
-from io import open
 
 import torch
-import torch.nn as nn
-from torch import optim
-import torch.nn.functional as F
 import pandas as pd
 from typing import List
 
 import numpy as np
-from torch.utils.data import TensorDataset, DataLoader, RandomSampler
-from data import get_dataloader, normalizeString, filterPairs, tensorFromSentence, Lang
+from data import normalizeString, filterPairs
 from utils import load_model, load_vocab
 from torch.jit import RecursiveScriptModule
 
@@ -18,24 +13,57 @@ from nltk.translate.bleu_score import SmoothingFunction
 from nltk.translate.bleu_score import sentence_bleu
 
 
+def tensorFromSentence(word2index: dict[str, int],
+                       sentence: str,
+                       end_token: int,
+                       unk_token_str: str) -> torch.Tensor:
+    """
+    Convert a sentence to a tensor of indexes
 
-def tensorFromSentence(word2index, sentence: str, end_token: int, unk_token_str: str) -> torch.Tensor:
+    Args:
+        word2index (dict): dictionary with the vocabulary
+        sentence (str): sentence to convert
+        end_token (int): end token
+        unk_token_str (str): unknown token
+
+    Returns:
+        torch.Tensor: tensor with indexes
     """
-    """
-    indexes = [word2index[word] if word in word2index else word2index[unk_token_str] for word in sentence.split(' ')]
+
+    indexes = [word2index[word]
+               if word in word2index else word2index[unk_token_str]
+               for word in sentence.split(' ')]
     indexes.append(end_token)
     return torch.tensor(indexes, dtype=torch.long, device=device).view(-1, 1)
 
+
 def evaluate_step(encoder: RecursiveScriptModule, decoder: RecursiveScriptModule,
-                  sentence: str, word2index_lang1, index2word_lang2, unk_token_str: str):
+                  sentence: str, word2index_lang1: dict[str, int],
+                  index2word_lang2: dict[int, str], unk_token_str: str):
+    """
+    Evaluate a sentence
+
+    Args:
+        encoder (RecursiveScriptModule): encoder model
+        decoder (RecursiveScriptModule): decoder model
+        sentence (str): sentence to evaluate
+        word2index_lang1 (dict): dictionary with the vocabulary of the input language
+        index2word_lang2 (dict): dictionary with the vocabulary of the output language
+        unk_token_str (str): unknown token
+
+    Returns:
+        list: list with the words of the translated sentence
+        torch.Tensor: tensor with the attention weights
+    """
 
     with torch.no_grad():
-        input_tensor = tensorFromSentence(word2index_lang1, sentence, EOS_token, unk_token_str)
+        input_tensor = tensorFromSentence(word2index_lang1, sentence,
+                                          EOS_token, unk_token_str)
         input_tensor = input_tensor.transpose(0, 1)
         encoder_outputs, encoder_hidden = encoder(input_tensor)
         decoder_outputs, decoder_hidden, decoder_attn = decoder(encoder_outputs,
                                                                 encoder_hidden)
-        
+
         _, topi = decoder_outputs.topk(1)
         decoded_ids = topi.squeeze()
 
@@ -49,12 +77,27 @@ def evaluate_step(encoder: RecursiveScriptModule, decoder: RecursiveScriptModule
 
 
 def evaluate(encoder: RecursiveScriptModule, decoder: RecursiveScriptModule,
-             input_sentences, targets, word2index_lang1, index2word_lang2, unk_token_str: str):
+             input_sentences: list, targets: list, word2index_lang1: dict[str, int],
+             index2word_lang2: dict[int, str], unk_token_str: str):
+    """
+    Evaluate a list of sentences
+
+    Args:
+        encoder (RecursiveScriptModule): encoder model
+        decoder (RecursiveScriptModule): decoder model
+        input_sentences (list): list with the sentences to evaluate
+        targets (list): list with the target sentences
+        word2index_lang1 (dict): dictionary with the vocabulary of the input language
+        index2word_lang2 (dict): dictionary with the vocabulary of the output language
+        unk_token_str (str): unknown token
+    """
 
     output_sentences = []
 
     for sentence in input_sentences:
-        output_words, _ = evaluate_step(encoder, decoder, sentence, word2index_lang1, index2word_lang2, unk_token_str)
+        output_words, _ = evaluate_step(encoder, decoder, sentence,
+                                        word2index_lang1, index2word_lang2,
+                                        unk_token_str)
         output_sentence = ' '.join(output_words)
         print('>', sentence)
         print('<', output_sentence)
@@ -63,7 +106,7 @@ def evaluate(encoder: RecursiveScriptModule, decoder: RecursiveScriptModule,
         output_sentences.append(output_words)
 
     targets = [target.split() for target in targets]
-    
+
     bleu = calculate_bleu(targets, output_sentences)
     print(bleu)
 
@@ -139,17 +182,19 @@ if __name__ == "__main__":
 
     data: pd.DataFrame = pd.read_csv('data/%s-%s_test.csv' % (namelang_in, namelang_out))
     data = data.sample(n=100)
-    normalized_data = data.map(lambda x: normalizeString(x) if pd.notna(x) and x.strip() != '' else None)
-    pairs: List[List[str]] = [list(row.dropna()) for _, row in normalized_data.iterrows()]
-    pairs: List[List[str]] = [pair for pair in pairs if len(pair) == 2 and pair[0] != '' and pair[1] != '']
+    normalized_data = data.map(lambda x: normalizeString(x)
+                               if pd.notna(x) and x.strip() != '' else None)
+    pairs: List[List[str]] = [list(row.dropna())
+                              for _, row in normalized_data.iterrows()]
+    pairs = [pair for pair in pairs
+             if len(pair) == 2 and pair[0] != '' and pair[1] != '']
     pairs = filterPairs(pairs, max_length)
 
     word2index_lang1 = load_vocab(f"{namelang_in}")
     word2index_lang2 = load_vocab(f"{namelang_out}")
-      
+
     # Crear un diccionario inverso
     index2word_lang2 = {valor: clave for clave, valor in word2index_lang2.items()}
-
 
     # load models
     encoder = load_model('models/best_encoder.pt', device)
@@ -159,11 +204,14 @@ if __name__ == "__main__":
     targets = [pair[1] for pair in pairs]
 
     # Inputs with targets
-    evaluate(encoder, decoder, sentences_input, targets, word2index_lang1, index2word_lang2, unk_token_str)
+    evaluate(encoder, decoder, sentences_input, targets,
+             word2index_lang1, index2word_lang2, unk_token_str)
 
-    # # just wanting to translate a sentence without evaluating
+    # # just wanting to translate a
+    # # sentence without evaluating
     # sentence = '"The computer is broken"'
-    # output_words, _ = evaluate_step(encoder, decoder, sentence, word2index_lang1, index2word_lang2, unk_token_str)
+    # output_words, _ = evaluate_step(encoder, decoder, sentence,
+    #                                 word2index_lang1, index2word_lang2, unk_token_str)
     # output_sentence = ' '.join(output_words)
     # print('>', sentence)
     # print('<', output_sentence)
